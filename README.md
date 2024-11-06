@@ -1,2 +1,3 @@
-# solver-fogarty-gambit
-solver-fogarty-gambit created by GitHub Classroom
+# Fogarty Gambit
+### Team members
+Chase Hays, Zach Weiss, Gavin Letulle, Gordey Danilochkin, Fedir Ensary
