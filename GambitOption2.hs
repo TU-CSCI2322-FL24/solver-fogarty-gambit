@@ -9,6 +9,7 @@ type CurrentTurn = Side
 type Position = (Char, Int) -- 'A' to 'H' for columns, 1 to 8 for rows
 
 type MoveCount = Int
+--type MoveCount = Bool    <- maybe bool here?
 
 type Piece = (Side, PieceType, MoveCount)
 
