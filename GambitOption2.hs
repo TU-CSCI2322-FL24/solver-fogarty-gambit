@@ -91,6 +91,7 @@ inCheck = undefined
 getPiece :: Game -> Position -> Maybe Piece
 getPiece = undefined
 
+--hi
 
 {-
 @#@@@@@@@@@@@@@@@@@@@@@@@#+@;##+'++####@@@@@@@@+#'+'+##+'+';;;+@@@@@@@@@@@@@@@@@@@@@@@@@@@
