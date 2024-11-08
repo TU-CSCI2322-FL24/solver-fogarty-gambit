@@ -10,10 +10,10 @@ type CurrentTurn = Side
 
 type Position = (Char, Int) -- 'A' to 'H' for columns, 1 to 8 for rows
 
-type MoveCount = Int
+--type MoveCount = Int
 --type HasMoved = Bool    <- maybe bool here?
 
-type Piece = (Side, PieceType, MoveCount)
+type Piece = (Side, PieceType)
 
 type Move = (Piece, Position) --Maybe move should take a position instead of a piece
 
@@ -25,17 +25,17 @@ allPositions = [(x, y) | x <- ['A'..'H'], y <- [1..8]]
 initialGame :: Game
 initialGame = (White, initialPieces) where
     initialPieces = initialPawns ++ initialRooks ++ initialKnights ++ initialBishops ++ initialQueens ++ initialKings where
-        initialPawns = [ ((col, if side == White then 2 else 7), (side, Pawn False, 0)) | side <- [White, Black], col <- ['A'..'H']]
-        initialRooks = [ ((col, if side == White then 1 else 8), (side, Rook False, 0)) | side <- [White, Black], col <- ['A','H']]
-        initialKnights = [ ((col, if side == White then 1 else 8), (side, Knight, 0)) | side <- [White, Black], col <- ['B','G']]
-        initialBishops = [ ((col, if side == White then 1 else 8), (side, Bishop, 0)) | side <- [White, Black], col <- ['C','F']]
-        initialQueens = [ (('D', 1), (White, Queen, 0)), (('D', 8), (Black, Queen, 0))]
-        initialKings = [ (('E', 1), (White, King False, 0)), (('E', 8), (Black, King False, 0))]
+        initialPawns = [ ((col, if side == White then 2 else 7), (side, Pawn False)) | side <- [White, Black], col <- ['A'..'H']]
+        initialRooks = [ ((col, if side == White then 1 else 8), (side, Rook False)) | side <- [White, Black], col <- ['A','H']]
+        initialKnights = [ ((col, if side == White then 1 else 8), (side, Knight)) | side <- [White, Black], col <- ['B','G']]
+        initialBishops = [ ((col, if side == White then 1 else 8), (side, Bishop)) | side <- [White, Black], col <- ['C','F']]
+        initialQueens = [ (('D', 1), (White, Queen)), (('D', 8), (Black, Queen))]
+        initialKings = [ (('E', 1), (White, King False)), (('E', 8), (Black, King False))]
 
 getScore :: Game -> Side -> Int --Gets the difference in material of the input side vs the other side
 getScore (_, allPieces) side =
-    let sidePieces = [pieceType | (_, (pieceSide, pieceType, _)) <- allPieces, pieceSide == side]
-        otherSidePieces = [pieceType | (_, (pieceSide, pieceType, _)) <- allPieces, pieceSide /= side]
+    let sidePieces = [pieceType | (_, (pieceSide, pieceType)) <- allPieces, pieceSide == side]
+        otherSidePieces = [pieceType | (_, (pieceSide, pieceType)) <- allPieces, pieceSide /= side]
         sideMaterial = sum [case pieceType of
                Pawn bool -> 1
                Rook bool  -> 5
@@ -72,8 +72,8 @@ showGame = undefined
 legalPieceMoves :: Game -> Piece -> [Move]
 legalPieceMoves = undefined
 
---Get every possible move for all pieces
-allLegalMoves :: Game -> [Move]
+--Get every possible move for a side
+allLegalMoves :: Game -> Side -> [Move]
 allLegalMoves = undefined
 
 --Update the game after a move is made
@@ -81,15 +81,37 @@ makeMove :: Game -> Move -> Game
 makeMove = undefined
 
 --Check if a move puts one side's king in check. Also used to make sure you can't move a piece that is pinned to your king
+--causeCheck White checks if a move will put the White king in check.
 causeCheck :: Game -> Move -> Side -> Bool
-causeCheck = undefined
+causeCheck game move side = 
+    let newGame = makeMove game move in
+    inCheck newGame side
 
 --Check if a specific side is currently in check
 inCheck :: Game -> Side -> Bool
-inCheck = undefined
+inCheck game currentSide =
+    let opponentSide = if currentSide == White then Black else White
+        opponentMoves = allLegalMoves game opponentSide
+        yourMoves = allLegalMoves game currentSide
+        yourPieces = map fst yourMoves
+        kingBool = (currentSide, King True) `elem` yourPieces --gets the correct bool of the king before it is called
+        kingPosition = getPosition game (currentSide, King kingBool)
+    in
+        any (\(_, pos) -> pos == kingPosition) opponentMoves
 
-getPiece :: Game -> Position -> Maybe Piece
-getPiece = undefined
+--Takes a piece and returns it's current position
+getPosition :: Game -> Piece -> Position
+getPosition (_, pieces) piece = 
+    case lookup piece (map (\(pos, p) -> (p, pos)) pieces) of
+        Just pos -> pos
+        Nothing -> error "Piece not found on the board"
+
+--Takes a position and returns the current piece at that position
+getPiece :: Game -> Position -> Piece
+getPiece (_, pieces) position = 
+    case lookup position pieces of
+        Just piece -> piece
+        Nothing -> error "No piece at the given position"
 
 --hi
 
