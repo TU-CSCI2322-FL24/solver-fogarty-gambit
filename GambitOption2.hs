@@ -1,8 +1,8 @@
 
 data Side = White | Black deriving (Show, Eq)
 
-
-data PieceType = Pawn | Rook | Knight | Bishop | Queen | King deriving (Show, Eq)
+--              enpassantable   hasMoved                               hasMoved
+data PieceType = Pawn Bool | Rook Bool | Knight | Bishop | Queen | King Bool deriving (Show, Eq)
 
 type CurrentTurn = Side
 
@@ -25,32 +25,32 @@ allPositions = [(x, y) | x <- ['A'..'H'], y <- [1..8]]
 initialGame :: Game
 initialGame = (White, initialPieces) where
     initialPieces = initialPawns ++ initialRooks ++ initialKnights ++ initialBishops ++ initialQueens ++ initialKings where
-        initialPawns = [ ((col, if side == White then 2 else 7), (side, Pawn, 0)) | side <- [White, Black], col <- ['A'..'H']]
-        initialRooks = [ ((col, if side == White then 1 else 8), (side, Rook, 0)) | side <- [White, Black], col <- ['A','H']]
+        initialPawns = [ ((col, if side == White then 2 else 7), (side, Pawn False, 0)) | side <- [White, Black], col <- ['A'..'H']]
+        initialRooks = [ ((col, if side == White then 1 else 8), (side, Rook False, 0)) | side <- [White, Black], col <- ['A','H']]
         initialKnights = [ ((col, if side == White then 1 else 8), (side, Knight, 0)) | side <- [White, Black], col <- ['B','G']]
         initialBishops = [ ((col, if side == White then 1 else 8), (side, Bishop, 0)) | side <- [White, Black], col <- ['C','F']]
         initialQueens = [ (('D', 1), (White, Queen, 0)), (('D', 8), (Black, Queen, 0))]
-        initialKings = [ (('E', 1), (White, King, 0)), (('E', 8), (Black, King, 0))]
+        initialKings = [ (('E', 1), (White, King False, 0)), (('E', 8), (Black, King False, 0))]
 
 getScore :: Game -> Side -> Int --Gets the difference in material of the input side vs the other side
 getScore (_, allPieces) side =
     let sidePieces = [pieceType | (_, (pieceSide, pieceType, _)) <- allPieces, pieceSide == side]
         otherSidePieces = [pieceType | (_, (pieceSide, pieceType, _)) <- allPieces, pieceSide /= side]
         sideMaterial = sum [case pieceType of
-               Pawn   -> 1
-               Rook   -> 5
+               Pawn bool -> 1
+               Rook bool  -> 5
                Bishop -> 3
                Knight -> 3
                Queen  -> 9
-               King   -> 0
+               King bool  -> 0
            | pieceType <- sidePieces]
         otherSideMaterial = sum [case pieceType of
-               Pawn   -> 1
-               Rook   -> 5
+               Pawn bool  -> 1
+               Rook bool  -> 5
                Bishop -> 3
                Knight -> 3
                Queen  -> 9
-               King   -> 0
+               King bool  -> 0
            | pieceType <- otherSidePieces]
     in
         if sideMaterial > otherSideMaterial then sideMaterial - otherSideMaterial else 0
