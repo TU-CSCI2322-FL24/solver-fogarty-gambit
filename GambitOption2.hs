@@ -97,6 +97,7 @@ inCheck game currentSide =
         kingBool = (currentSide, King True) `elem` yourPieces --gets the correct bool of the king before it is called
         kingPosition = getPosition game (currentSide, King kingBool)
     in
+        --Checks to see if the king's position exists as a valid move for any of the opponent's pieces
         any (\(_, pos) -> pos == kingPosition) opponentMoves
 
 --Takes a piece and returns it's current position
