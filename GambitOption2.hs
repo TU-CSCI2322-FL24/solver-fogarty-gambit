@@ -81,6 +81,7 @@ legalPieceMoves game pos =
                 leftPos = (pred col, row)           -- Directly left
                 rightPos = (succ col, row)          -- Directly right
                 isOnStartingRow = (side == White && row == 2) || (side == Black && row == 7)
+                isPromotionRow = (side == White && forwardOne == 8) || (side == Black && forwardOne == 1)
 
                 -- Check if the square directly forward is empty
                 canMoveOne = getPiece game (col, forwardOne) == Nothing
@@ -107,7 +108,13 @@ legalPieceMoves game pos =
                     _ -> False
 
                 -- Define moves for each possible legal move
-                singleMove = if canMoveOne then [((side, Pawn enPassantable), (col, forwardOne))] else []
+                promotionPieces = [Queen, Rook True, Bishop, Knight]
+
+                singleMove = if canMoveOne then
+                                if isPromotionRow 
+                                then [((side, promotedPiece), (col, forwardOne)) | promotedPiece <- promotionPieces]
+                                else [((side, Pawn enPassantable), (col, forwardOne))]
+                             else []
                 doubleMove = if isOnStartingRow && canMoveOne && canMoveTwo
                              then [((side, Pawn True), (col, forwardTwo))]  -- Mark as en passant-able
                              else []
@@ -123,6 +130,7 @@ legalPieceMoves game pos =
                 --possibleMoves = singleMove ++ doubleMove ++ captureMoves ++ enPassantMoves
                 --in filter (\move -> causeCheck game move side == False) possibleMoves
 
+                -- ^^^^^^
                 --Once allLegalMoves is defined we can include making sure that each move doesnt put our own king in check
                 
                 in singleMove ++ doubleMove ++ captureMoves ++ enPassantMoves
