@@ -69,8 +69,66 @@ showGame :: Game -> String
 showGame = undefined
 
 --Get every possible move given a specfic piece
-legalPieceMoves :: Game -> Piece -> [Move]
-legalPieceMoves = undefined
+legalPieceMoves :: Game -> Position -> [Move]
+legalPieceMoves game pos =
+    case getPiece game pos of
+        Just (side, Pawn enPassantable) -> 
+            let (col, row) = pos
+                forwardOne = if side == White then row + 1 else row - 1
+                forwardTwo = if side == White then row + 2 else row - 2
+                leftDiag = (pred col, forwardOne)   -- Diagonal left
+                rightDiag = (succ col, forwardOne)  -- Diagonal right
+                leftPos = (pred col, row)           -- Directly left
+                rightPos = (succ col, row)          -- Directly right
+                isOnStartingRow = (side == White && row == 2) || (side == Black && row == 7)
+
+                -- Check if the square directly forward is empty
+                canMoveOne = getPiece game (col, forwardOne) == Nothing
+
+                -- Check if both squares directly forward are empty for a two-square move
+                canMoveTwo = getPiece game (col, forwardTwo) == Nothing
+
+                -- Check if there’s an opponent’s piece on either diagonal for capture
+                canCaptureLeft = case getPiece game leftDiag of
+                    Just (otherSide, _) -> otherSide /= side
+                    Nothing -> False
+
+                canCaptureRight = case getPiece game rightDiag of
+                    Just (otherSide, _) -> otherSide /= side
+                    Nothing -> False
+
+                -- Check if en passant is possible (en passant-able pawn directly to the left or right)
+                enPassantLeft = case getPiece game leftPos of
+                    Just (otherSide, Pawn True) -> otherSide /= side
+                    _ -> False
+
+                enPassantRight = case getPiece game rightPos of
+                    Just (otherSide, Pawn True) -> otherSide /= side
+                    _ -> False
+
+                -- Define moves for each possible legal move
+                singleMove = if canMoveOne then [((side, Pawn enPassantable), (col, forwardOne))] else []
+                doubleMove = if isOnStartingRow && canMoveOne && canMoveTwo
+                             then [((side, Pawn True), (col, forwardTwo))]  -- Mark as en passant-able
+                             else []
+                captureMoves = concat
+                    [ if canCaptureLeft then [((side, Pawn enPassantable), leftDiag)] else []
+                    , if canCaptureRight then [((side, Pawn enPassantable), rightDiag)] else []
+                    ]
+                enPassantMoves = concat
+                    [ if enPassantLeft then [((side, Pawn enPassantable), leftDiag)] else []
+                    , if enPassantRight then [((side, Pawn enPassantable), rightDiag)] else []
+                    ]
+
+                --possibleMoves = singleMove ++ doubleMove ++ captureMoves ++ enPassantMoves
+                --in filter (\move -> causeCheck game move side == False) possibleMoves
+
+                --Once allLegalMoves is defined we can include making sure that each move doesnt put our own king in check
+                
+                in singleMove ++ doubleMove ++ captureMoves ++ enPassantMoves
+
+        -- Other pieces will be added here
+        _ -> []
 
 --Get every possible move for a side
 allLegalMoves :: Game -> Side -> [Move]
@@ -107,12 +165,12 @@ getPosition (_, pieces) piece =
         Just pos -> pos
         Nothing -> error "Piece not found on the board"
 
---Takes a position and returns the current piece at that position
-getPiece :: Game -> Position -> Piece
+--Takes a position and returns the current piece at that position, if any
+getPiece :: Game -> Position -> Maybe Piece
 getPiece (_, pieces) position = 
     case lookup position pieces of
-        Just piece -> piece
-        Nothing -> error "No piece at the given position"
+        Just piece -> Just piece
+        Nothing    -> Nothing
 
 --hi
 
