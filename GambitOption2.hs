@@ -28,18 +28,18 @@ reverseList lst = let
     in aux lst []
 
 pieceToChar :: Piece -> Char
-pieceToChar (Black, King _, _) = '\x2654'
-pieceToChar (White, King _, _) = '\x265A'
-pieceToChar (Black, Queen, _) = '\x2655'
-pieceToChar (White, Queen, _) = '\x265B'
-pieceToChar (Black, Bishop, _) = '\x2657'
-pieceToChar (White, Bishop, _) = '\x265D'
-pieceToChar (Black, Knight, _) = '\x2658'
-pieceToChar (White, Knight, _) = '\x265E'
-pieceToChar (Black, Rook _, _) = '\x2656'
-pieceToChar (White, Rook _, _) = '\x265C'
-pieceToChar (Black, Pawn _, _) = '\x2659'
-pieceToChar (White, Pawn _, _) = '\x265F'
+pieceToChar (Black, King _) = '\x2654'
+pieceToChar (White, King _) = '\x265A'
+pieceToChar (Black, Queen) = '\x2655'
+pieceToChar (White, Queen) = '\x265B'
+pieceToChar (Black, Bishop) = '\x2657'
+pieceToChar (White, Bishop) = '\x265D'
+pieceToChar (Black, Knight) = '\x2658'
+pieceToChar (White, Knight) = '\x265E'
+pieceToChar (Black, Rook _) = '\x2656'
+pieceToChar (White, Rook _) = '\x265C'
+pieceToChar (Black, Pawn _) = '\x2659'
+pieceToChar (White, Pawn _) = '\x265F'
 pieceToChar _ = error "That piece doesn't exist"
 
 --IncrementPos increments a position one square to the right, starting at a8 and ending at h1.
