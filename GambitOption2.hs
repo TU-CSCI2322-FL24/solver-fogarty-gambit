@@ -58,7 +58,7 @@ blackSquare = '\x2591'
 whiteFirstRow = [whiteSquare, blackSquare, whiteSquare, blackSquare, whiteSquare, blackSquare, whiteSquare, blackSquare]
 blackFirstRow = [blackSquare, whiteSquare, blackSquare, whiteSquare, blackSquare, whiteSquare, blackSquare, whiteSquare]
 emptyBoard = whiteFirstRow ++ blackFirstRow ++ whiteFirstRow ++ blackFirstRow ++ whiteFirstRow ++ blackFirstRow ++whiteFirstRow ++ blackFirstRow
-displayBoard :: Game -> Side -> String
+displayBoard :: Game -> Side -> IO ()
 displayBoard game pov = let
     positionsAndPieces = [(pos, piece) | (pos, piece) <- snd game]
 
@@ -76,10 +76,8 @@ displayBoard game pov = let
         in if isNothing maybePiece 
             then aux (out ++ [square]) (rows) (incrementPos currentPos) 
             else aux (out ++ [pieceToChar (fromJust maybePiece)]) (rows) (incrementPos currentPos)
-
-    in if pov == White then '\n':(aux "" emptyBoard ('A', 8)) else (reverseList (aux "" emptyBoard ('A', 8))) ++ "\n"
-
---use putStr in the shell to print this string
+    displayStr = if pov == White then '\n':(aux "" emptyBoard ('A', 8)) else (reverseList (aux "" emptyBoard ('A', 8))) ++ "\n"
+    in putStrLn displayStr
 
 
 allPositions :: [Position]
