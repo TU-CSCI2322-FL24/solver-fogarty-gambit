@@ -169,23 +169,21 @@ legalPieceMoves game pos =
                     _ -> False
 
                 -- Define moves for each possible legal move
-                promotionPieces = [Queen, Rook True, Bishop, Knight]
+                --promotionPieces = [Queen, Rook True, Bishop, Knight]
 
                 singleMove = if canMoveOne then
-                                if isPromotionRow 
-                                then [((side, promotedPiece), (col, forwardOne)) | promotedPiece <- promotionPieces]
-                                else [((side, Pawn enPassantable), (col, forwardOne))]
+                                [((pos), (col, forwardOne))]
                              else []
                 doubleMove = if isOnStartingRow && canMoveOne && canMoveTwo
-                             then [((side, Pawn True), (col, forwardTwo))]  -- Mark as en passant-able
+                             then [((pos), (col, forwardTwo))]  -- Mark as en passant-able
                              else []
                 captureMoves = concat
-                    [ if canCaptureLeft then [((side, Pawn enPassantable), leftDiag)] else []
-                    , if canCaptureRight then [((side, Pawn enPassantable), rightDiag)] else []
+                    [ if canCaptureLeft then [((pos), leftDiag)] else []
+                    , if canCaptureRight then [((pos), rightDiag)] else []
                     ]
                 enPassantMoves = concat
-                    [ if enPassantLeft then [((side, Pawn enPassantable), leftDiag)] else []
-                    , if enPassantRight then [((side, Pawn enPassantable), rightDiag)] else []
+                    [ if enPassantLeft then [((pos), leftDiag)] else []
+                    , if enPassantRight then [((pos), rightDiag)] else []
                     ]
 
                 --possibleMoves = singleMove ++ doubleMove ++ captureMoves ++ enPassantMoves
@@ -216,6 +214,7 @@ makeMove game@(side, positions) move@(startPos, endPos) = if move `elem` (legalP
 
 --Check if a move puts one side's king in check. Also used to make sure you can't move a piece that is pinned to your king
 --causeCheck White checks if a move will put the White king in check.
+
 causeCheck :: Game -> Move -> Side -> Bool
 causeCheck game move side = 
     let newGame = makeMove game move in
@@ -226,10 +225,7 @@ inCheck :: Game -> Side -> Bool
 inCheck game currentSide =
     let opponentSide = if currentSide == White then Black else White
         opponentMoves = allLegalMoves game opponentSide
-        yourMoves = allLegalMoves game currentSide
-        yourPieces = map fst yourMoves
-        kingBool = (currentSide, King True) `elem` yourPieces --gets the correct bool of the king before it is called
-        kingPosition = getPosition game (currentSide, King kingBool)
+        kingPosition = getKingPosition game (currentSide, King False)
     in
         --Checks to see if the king's position exists as a valid move for any of the opponent's pieces
         any (\(_, pos) -> pos == kingPosition) opponentMoves
@@ -240,6 +236,15 @@ getPosition (_, pieces) piece =
     case lookup piece (map (\(pos, p) -> (p, pos)) pieces) of
         Just pos -> pos
         Nothing -> error "Piece not found on the board"
+
+getKingPosition :: Game -> Piece -> Position
+getKingPosition (_, pieces) (side, King _) = 
+    case [(pos, pieceType) | (pos, (pieceSide, pieceType)) <- pieces, pieceSide == side, isKing pieceType] of
+        [(pos, _)] -> pos
+        _ -> error "King not found on the board"
+    where
+        isKing (King _) = True
+        isKing _ = False
 
 --Takes a position and returns the current piece at that position, if any
 getPiece :: Game -> Position -> Maybe Piece
