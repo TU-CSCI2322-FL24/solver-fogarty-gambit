@@ -68,8 +68,6 @@ whiteFirstRow = [whiteSquare, blackSquare, whiteSquare, blackSquare, whiteSquare
 blackFirstRow = [blackSquare, whiteSquare, blackSquare, whiteSquare, blackSquare, whiteSquare, blackSquare, whiteSquare]
 emptyBoard = whiteFirstRow ++ blackFirstRow ++ whiteFirstRow ++ blackFirstRow ++ whiteFirstRow ++ blackFirstRow ++whiteFirstRow ++ blackFirstRow
 
---hi
---hi
 displayBoard :: Game -> Side -> String
 displayBoard game pov = let
     --Association list of every piece on the board
