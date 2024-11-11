@@ -68,10 +68,10 @@ whiteFirstRow = [whiteSquare, blackSquare, whiteSquare, blackSquare, whiteSquare
 blackFirstRow = [blackSquare, whiteSquare, blackSquare, whiteSquare, blackSquare, whiteSquare, blackSquare, whiteSquare]
 emptyBoard = whiteFirstRow ++ blackFirstRow ++ whiteFirstRow ++ blackFirstRow ++ whiteFirstRow ++ blackFirstRow ++whiteFirstRow ++ blackFirstRow
 
-{- displayBoard :: Game -> Side -> String
+displayBoard :: Game -> Side -> String
 displayBoard game pov = let
     --Association list of every piece on the board
-    positionsAndPieces = [(pos, piece) | (pos, piece) <- snd game]
+    positionsAndPieces = [(pos, (side, pieceType)) | (pos, side, pieceType) <- snd game]
 
     --Builds the board line by line, recursively
     aux :: String -> [Char] -> Position -> String
@@ -80,22 +80,23 @@ displayBoard game pov = let
 
     --Case for the last (furthest right) square of each row.
     aux out (square:board) currentPos@('H', num) = let 
+        maybePiece :: Maybe (Side, PieceType)
         maybePiece = lookup currentPos positionsAndPieces
         --Checks if we need to print a piece char or a square char
         in if isNothing maybePiece
             --                                            Prints the row numbers on the side of the board
             then aux (out ++ [square] ++ "|" ++  "\n" ++ (if (snd (incrementPos currentPos) == 8) then " " else show (snd (incrementPos currentPos))) ++ (if currentPos == ('H', 1) then " " else "|")) (board) (incrementPos currentPos) 
-            else aux (out ++ [pieceToChar (fromJust maybePiece)] ++ "|" ++  "\n" ++ (if (snd (incrementPos currentPos) == 8) then " " else show (snd (incrementPos currentPos))) ++ (if currentPos == ('H', 1) then " " else "|")) (board) (incrementPos currentPos)
+            else aux (out ++ [pieceToChar (currentPos, fst (fromJust maybePiece), snd (fromJust maybePiece))] ++ "|" ++  "\n" ++ (if (snd (incrementPos currentPos) == 8) then " " else show (snd (incrementPos currentPos))) ++ (if currentPos == ('H', 1) then " " else "|")) (board) (incrementPos currentPos)
 
     aux out (square:rows) currentPos = let
         maybePiece = lookup currentPos positionsAndPieces
         in if isNothing maybePiece 
             then aux (out ++ [square]) (rows) (incrementPos currentPos) 
-            else aux (out ++ [pieceToChar (fromJust maybePiece)]) (rows) (incrementPos currentPos)
+            else aux (out ++ [pieceToChar (currentPos, fst (fromJust maybePiece), snd (fromJust maybePiece))]) (rows) (incrementPos currentPos)
     --                                                        Labels for the ranks                                                   The board is printed backwards for black              Labels for the ranks, backwards
     in if pov == White then ('\n':"  ________ \n8|" ++ (aux "" emptyBoard ('A', 8)) ++ "\b ‾‾‾‾‾‾‾‾ \n  ABCDEFGH") else ('\n':" ________ " ++ (reverseList (((aux "" emptyBoard ('A', 8)) ++ ""))) ++ "|8\n ‾‾‾‾‾‾‾‾ \n HGFEDCBA")
 
---use putStr in the shell to print this string -}
+--use putStrLn in the shell to print this string
 
 
 allPositions :: [Position]
