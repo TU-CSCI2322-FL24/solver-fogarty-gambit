@@ -15,7 +15,7 @@ type Position = (Char, Int) -- 'A' to 'H' for columns, 1 to 8 for rows
 
 type Piece = (Side, PieceType)
 
-type Move = (Piece, Position) --Maybe move should take a position instead of a piece
+type Move = (Position, Position) --Maybe move should take a position instead of a piece
 
 type Game = (CurrentTurn, [(Position, Piece)])
 
@@ -205,7 +205,14 @@ allLegalMoves = undefined
 
 --Update the game after a move is made
 makeMove :: Game -> Move -> Game
-makeMove = undefined
+makeMove game@(side, positions) move@(startPos, endPos) = if move `elem` (legalPieceMoves game startPos)
+    then 
+        let 
+            newSide = if side == White then Black else White
+            newPositions = map (\(pos, piece) -> if pos == startPos then (endPos, piece) else (pos, piece))
+                                (filter (\(pos, piece) -> pos /= endPos) positions)
+        in (newSide, newPositions)
+    else error "Such move is not allowed"
 
 --Check if a move puts one side's king in check. Also used to make sure you can't move a piece that is pinned to your king
 --causeCheck White checks if a move will put the White king in check.
