@@ -75,9 +75,9 @@ displayBoard game pov = let
     --Association list of every piece on the board
     positionsAndPieces = [(pos, (side, pieceType)) | (pos, side, pieceType) <- snd game]
 
-    --(missingWhitePieces, missingBlackPieces) = getMissingPieces (snd game)
-    --missingWhiteStr = map pieceToChar missingWhitePieces
-    --missingBlackStr = map pieceToChar missingBlackPieces
+    (missingWhitePieces, missingBlackPieces) = getMissingPieces (snd game)
+    missingWhiteStr = map pieceToChar missingWhitePieces
+    missingBlackStr = map pieceToChar missingBlackPieces
 
     --Builds the board line by line, recursively
     aux :: String -> [Char] -> Position -> String
@@ -100,10 +100,10 @@ displayBoard game pov = let
             then aux (out ++ [square]) (rows) (incrementPos currentPos) 
             else aux (out ++ [pieceToChar (currentPos, fst (fromJust maybePiece), snd (fromJust maybePiece))]) (rows) (incrementPos currentPos)
     --                                                        Labels for the ranks                                                   The board is printed backwards for black              Labels for the ranks, backwards
-    in if pov == White then ("\n  ________ \n8|" ++ (aux "" emptyBoard ('A', 8)) ++ "\b ‾‾‾‾‾‾‾‾ \n  ABCDEFGH\n\n") else ('\n':" ________ " ++ (reverseList (((aux "" emptyBoard ('A', 8)) ++ ""))) ++ "|8\n ‾‾‾‾‾‾‾‾ \n HGFEDCBA")
+    in if pov == White then ("\n" ++ missingWhiteStr ++ "\n  ________ \n8|" ++ (aux "" emptyBoard ('A', 8)) ++ "\b ‾‾‾‾‾‾‾‾ \n  ABCDEFGH\n\n" ++ missingBlackStr ++ "\n") else ("\n" ++ missingBlackStr ++ "\n ________ " ++ (reverseList (((aux "" emptyBoard ('A', 8)) ++ ""))) ++ "|8\n ‾‾‾‾‾‾‾‾ \n HGFEDCBA\n\n" ++ missingWhiteStr ++ "\n")
 
 --use putStrLn in the shell to print this string
-{-
+
 getMissingPieces :: [Piece] -> ([Piece], [Piece])
 getMissingPieces [] = ([], [])
 getMissingPieces pieces = let
@@ -116,7 +116,7 @@ getMissingPieces pieces = let
     (missingWhiteBishops, missingBlackBishops) = ((replicate (length [piece | (pos, color, piece) <- snd initialGame, color == White, piece == Bishop] - length [piece | piece <- whitePieces, piece == Bishop]) (('A', 1), White, Bishop)), replicate (length [piece | (pos, color, piece) <- snd initialGame, color == Black, piece == Bishop] - length [piece | piece <- blackPieces, piece == Bishop]) (('A', 1), Black, Bishop))
     (missingWhiteKnights, missingBlackKnights) = ((replicate (length [piece | (pos, color, piece) <- snd initialGame, color == White, piece == Knight] - length [piece | piece <- whitePieces, piece == Knight]) (('A', 1), White, Knight)), replicate (length [piece | (pos, color, piece) <- snd initialGame, color == Black, piece == Knight] - length [piece | piece <- blackPieces, piece == Knight]) (('A', 1), Black, Knight))
     in (missingWhitePawns ++ missingWhiteKnights ++ missingWhiteBishops ++ missingWhiteRooks ++ missingWhiteQueens ++ missingWhiteKings, missingBlackPawns ++ missingBlackKnights ++ missingBlackBishops ++ missingBlackRooks ++ missingBlackQueens ++ missingBlackKings)
--}
+
 
 allPositions :: [Position]
 allPositions = [(x, y) | x <- ['A'..'H'], y <- [1..8]]
