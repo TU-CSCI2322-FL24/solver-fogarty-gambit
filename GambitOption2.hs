@@ -198,8 +198,8 @@ legalPieceMoves game pos =
         _ -> []
 
 --Get every possible move for a side
-allLegalMoves :: Game -> Side -> [Move]
-allLegalMoves = undefined
+allLegalMoves :: Game -> [Move]
+allLegalMoves game@(side, positions) = [move | (pos, piece) <- positions, pieceSide piece == side, move <- legalPieceMoves game pos]
 
 --Update the game after a move is made
 makeMove :: Game -> Move -> Game
@@ -209,7 +209,8 @@ makeMove game@(side, positions) move@(startPos, endPos) = if move `elem` (legalP
             newSide = if side == White then Black else White
             newPositions = map (\(pos, piece) -> if pos == startPos then (endPos, piece) else (pos, piece))
                                 (filter (\(pos, piece) -> pos /= endPos) positions)
-        in (newSide, newPositions)
+            newPositionsPromotions = map (\(pos, piece) -> if piece == Pawn && snd pos `elem` [1,8] then (pos, Queen) else (pos, piece)) newPositions
+        in (newSide, newPositionsPromotions)
     else error "Such move is not allowed"
 
 --Check if a move puts one side's king in check. Also used to make sure you can't move a piece that is pinned to your king
