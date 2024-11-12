@@ -1,6 +1,7 @@
 import Prelude
 import Data.Maybe
 import Data.List (find)
+import Data.Char
 data Side = White | Black deriving (Show, Eq)
 
 --              enpassantable   hasMoved                               hasMoved
@@ -10,17 +11,6 @@ type CurrentTurn = Side
 
 --type Label = Char -- 'a' to 'h' to label each piece by the column letter they start on. This might not be neccessary
 type Position = (Char, Int) -- 'A' to 'H' for columns, 1 to 8 for rows
-
---type MoveCount = Int
---type HasMoved = Bool    <- maybe bool here?
-
-{- type Piece = (Side, PieceType)
-
-type Move = (Position, Position) --Maybe move should take a position instead of a piece
-
-type Game = (CurrentTurn, [(Position, Piece)]) -}
-
--- old types ^^^
 
 type Piece = (Position, Side, PieceType)
 
@@ -224,31 +214,266 @@ legalPieceMoves game (pos, side, pieceType) =
                     [ if enPassantLeft then [((pos, side, Pawn False), leftDiag)] else []
                     , if enPassantRight then [((pos, side, Pawn False), rightDiag)] else []
                     ]
-                
-                --possibleMoves = singleMove ++ doubleMove ++ captureMoves ++ enPassantMoves
-                --in filter (\move -> causeCheck game move side == False) possibleMoves
 
-                -- ^^^^^^
-                --Once allLegalMoves is defined we can include making sure that each move doesnt put our own king in check
-
+            --in filter (\move -> not (causeCheck game move side)) singleMove ++ doubleMove ++ captureMoves ++ enPassantMoves
             in singleMove ++ doubleMove ++ captureMoves ++ enPassantMoves
-        _ -> []
 
---Get every possible move for a side
+        Rook hasMoved ->
+            let (col, row) = pos  -- Current position of the rook
+
+                -- Generate positions in each direction
+                positionsUp = [ (col, r) | r <- [row + 1 .. 8] ]
+                positionsDown = [ (col, r) | r <- [row - 1, row - 2 .. 1] ]
+                positionsLeft = [ (c, row) | c <- [chr (ord col - 1), chr (ord col - 2) .. 'A'] ]
+                positionsRight = [ (c, row) | c <- [chr (ord col + 1), chr (ord col + 2) .. 'H'] ]
+
+                -- Function to get rook moves in a direction
+                rookMovesInDirection :: [Position] -> [Position]
+                rookMovesInDirection [] = []
+                rookMovesInDirection (p:ps) =
+                    case getPiece game p of
+                        Nothing -> p : rookMovesInDirection ps  -- Empty square, can move, continue
+                        Just (_, pieceSide, _) ->
+                            if pieceSide == side
+                            then []      -- Friendly piece, cannot move further
+                            else [p]     -- Opponent's piece, can capture, stop after this square
+
+                -- Generate moves for each direction
+                upMoves = [ ((pos, side, Rook True), p) | p <- rookMovesInDirection positionsUp ]
+                downMoves = [ ((pos, side, Rook True), p) | p <- rookMovesInDirection positionsDown ]
+                leftMoves = [ ((pos, side, Rook True), p) | p <- rookMovesInDirection positionsLeft ]
+                rightMoves = [ ((pos, side, Rook True), p) | p <- rookMovesInDirection positionsRight ]
+
+            --in filter (\move -> not (causeCheck game move side)) upMoves ++ downMoves ++ leftMoves ++ rightMoves
+            in upMoves ++ downMoves ++ leftMoves ++ rightMoves
+        
+        Knight ->
+            let (col, row) = pos  -- Current position of the knight
+
+        -- List of possible relative moves for a knight
+                possibleMoves = [
+                    (chr (ord col + 2), row + 1),
+                    (chr (ord col + 2), row - 1),
+                    (chr (ord col - 2), row + 1),
+                    (chr (ord col - 2), row - 1),
+                    (chr (ord col + 1), row + 2),
+                    (chr (ord col + 1), row - 2),
+                    (chr (ord col - 1), row + 2),
+                    (chr (ord col - 1), row - 2)
+                    ]
+
+        -- Filter moves to only include valid board positions and exclude moves landing on friendly pieces
+                validMoves = [((pos, side, Knight), newPos) |
+                        newPos@(newCol, newRow) <- possibleMoves,
+                        newCol >= 'A' && newCol <= 'H',  -- Ensure within column bounds
+                        newRow >= 1 && newRow <= 8,      -- Ensure within row bounds
+                        case getPiece game newPos of
+                            Nothing -> True  -- Empty square, valid move
+                            Just (_, pieceSide, _) -> pieceSide /= side  -- Opponent's piece, valid move
+                     ]
+            --in filter (\move -> not (causeCheck game move side)) validMoves
+            in validMoves
+
+        Bishop ->
+            let (col, row) = pos  -- Current position of the bishop
+
+                -- Generate all diagonal positions in each direction
+                positionsUpRight = [ (chr (ord col + i), row + i) | i <- [1..7], chr (ord col + i) <= 'H', row + i <= 8 ]
+                positionsUpLeft = [ (chr (ord col - i), row + i) | i <- [1..7], chr (ord col - i) >= 'A', row + i <= 8 ]
+                positionsDownRight = [ (chr (ord col + i), row - i) | i <- [1..7], chr (ord col + i) <= 'H', row - i >= 1 ]
+                positionsDownLeft = [ (chr (ord col - i), row - i) | i <- [1..7], chr (ord col - i) >= 'A', row - i >= 1 ]
+
+                -- Function to get bishop moves in a direction
+                bishopMovesInDirection :: [Position] -> [Position]
+                bishopMovesInDirection [] = []
+                bishopMovesInDirection (p:ps) =
+                    case getPiece game p of
+                        Nothing -> p : bishopMovesInDirection ps  -- Empty square, can move, continue
+                        Just (_, pieceSide, _) ->
+                            if pieceSide == side
+                            then []      -- Friendly piece, cannot move further
+                            else [p]     -- Opponent's piece, can capture, stop after this square
+
+                -- Generate moves for each diagonal direction
+                upRightMoves = [ ((pos, side, Bishop), p) | p <- bishopMovesInDirection positionsUpRight ]
+                upLeftMoves = [ ((pos, side, Bishop), p) | p <- bishopMovesInDirection positionsUpLeft ]
+                downRightMoves = [ ((pos, side, Bishop), p) | p <- bishopMovesInDirection positionsDownRight ]
+                downLeftMoves = [ ((pos, side, Bishop), p) | p <- bishopMovesInDirection positionsDownLeft ]
+
+            --in filter (\move -> not (causeCheck game move side)) upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
+            in upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
+
+        Queen ->
+            let (col, row) = pos  -- Current position of the queen
+
+                -- Generate all diagonal positions (bishop-like movement)
+                positionsUpRight = [ (chr (ord col + i), row + i) | i <- [1..7], chr (ord col + i) <= 'H', row + i <= 8 ]
+                positionsUpLeft = [ (chr (ord col - i), row + i) | i <- [1..7], chr (ord col - i) >= 'A', row + i <= 8 ]
+                positionsDownRight = [ (chr (ord col + i), row - i) | i <- [1..7], chr (ord col + i) <= 'H', row - i >= 1 ]
+                positionsDownLeft = [ (chr (ord col - i), row - i) | i <- [1..7], chr (ord col - i) >= 'A', row - i >= 1 ]
+
+                -- Generate all straight positions (rook-like movement)
+                positionsUp = [ (col, r) | r <- [row + 1 .. 8] ]
+                positionsDown = [ (col, r) | r <- [row - 1, row - 2 .. 1] ]
+                positionsLeft = [ (c, row) | c <- [chr (ord col - 1), chr (ord col - 2) .. 'A'] ]
+                positionsRight = [ (c, row) | c <- [chr (ord col + 1), chr (ord col + 2) .. 'H'] ]
+
+                -- Helper function to get moves in a direction (works for both rook and bishop-like moves)
+                queenMovesInDirection :: [Position] -> [Position]
+                queenMovesInDirection [] = []
+                queenMovesInDirection (p:ps) =
+                    case getPiece game p of
+                        Nothing -> p : queenMovesInDirection ps  -- Empty square, continue
+                        Just (_, pieceSide, _) ->
+                            if pieceSide == side
+                            then []      -- Friendly piece, stop
+                            else [p]     -- Opponent's piece, capture and stop
+
+                -- Generate moves for each direction
+                upMoves = [ ((pos, side, Queen), p) | p <- queenMovesInDirection positionsUp ]
+                downMoves = [ ((pos, side, Queen), p) | p <- queenMovesInDirection positionsDown ]
+                leftMoves = [ ((pos, side, Queen), p) | p <- queenMovesInDirection positionsLeft ]
+                rightMoves = [ ((pos, side, Queen), p) | p <- queenMovesInDirection positionsRight ]
+                
+                upRightMoves = [ ((pos, side, Queen), p) | p <- queenMovesInDirection positionsUpRight ]
+                upLeftMoves = [ ((pos, side, Queen), p) | p <- queenMovesInDirection positionsUpLeft ]
+                downRightMoves = [ ((pos, side, Queen), p) | p <- queenMovesInDirection positionsDownRight ]
+                downLeftMoves = [ ((pos, side, Queen), p) | p <- queenMovesInDirection positionsDownLeft ]
+
+            --in filter (\move -> not (causeCheck game move side)) upMoves ++ downMoves ++ leftMoves ++ rightMoves ++ upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
+            in upMoves ++ downMoves ++ leftMoves ++ rightMoves ++ upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
+        
+        King hasMoved ->
+            let (col, row) = pos  -- Current position of the king
+
+                -- List of possible moves for a king (one square in each direction)
+                possibleMoves = [
+                    (chr (ord col + 1), row),        -- Right
+                    (chr (ord col - 1), row),        -- Left
+                    (col, row + 1),                  -- Up
+                    (col, row - 1),                  -- Down
+                    (chr (ord col + 1), row + 1),    -- Up-right
+                    (chr (ord col - 1), row + 1),    -- Up-left
+                    (chr (ord col + 1), row - 1),    -- Down-right
+                    (chr (ord col - 1), row - 1)     -- Down-left
+                    ]
+
+                -- Filter moves to only include valid board positions and exclude moves landing on friendly pieces
+                validMoves = [((pos, side, King True), newPos) |
+                                newPos@(newCol, newRow) <- possibleMoves,
+                                newCol >= 'A' && newCol <= 'H',  -- Ensure within column bounds
+                                newRow >= 1 && newRow <= 8,      -- Ensure within row bounds
+                                case getPiece game newPos of
+                                    Nothing -> True  -- Empty square, valid move
+                                    Just (_, pieceSide, _) -> pieceSide /= side  -- Opponent's piece, valid move
+                            ]
+            --in filter (\move -> not (causeCheck game move side)) validMoves
+            in validMoves
+            
+
+--Get every possible move for a side, including castling
 allLegalMoves :: Game -> Side -> [Move]
-allLegalMoves = undefined
+allLegalMoves game side =
+    let sidePieces = filter (\(_, s, _) -> s == side) (snd game)
+        allMoves = concatMap (legalPieceMoves game) sidePieces
+        legalMoves = filter (\move -> not (causeCheck game move side)) allMoves
+        kingSideCastle :: [Move] 
+        kingSideCastle =
+            if side == White then
+                if inCheck game White == False && getPiece game ('F', 1) == Nothing && getPiece game ('G', 1) == Nothing && getPiece game ('E', 1) == Just (('E', 1), White, King False) && getPiece game ('H', 1) == Just (('H', 1), White, Rook False) then
+                    if causeCheck game ((('E', 1), White, King False), ('F', 1)) side == False && causeCheck game ((('E', 1), White, King False), ('G', 1)) side == False then
+                        [((('E', 1), White, King True), ('G', 1))] 
+                    else []
+                else []
+            else if inCheck game Black == False && getPiece game ('F', 8) == Nothing && getPiece game ('G', 8) == Nothing && getPiece game ('E', 8) == Just (('E', 8), Black, King False) && getPiece game ('H', 8) == Just (('H', 8), Black, Rook False) then
+                    if causeCheck game ((('E', 8), Black, King False), ('F', 8)) side == False && causeCheck game ((('E', 8), Black, King False), ('G', 8)) side == False then
+                        [((('E', 8), Black, King True), ('G', 8))] 
+                    else []
+                else []
+        queenSideCastle :: [Move]
+        queenSideCastle =
+            if side == White then
+                if inCheck game White == False && getPiece game ('D', 1) == Nothing && getPiece game ('C', 1) == Nothing && getPiece game ('B', 1) == Nothing && getPiece game ('E', 1) == Just (('E', 1), White, King False) && getPiece game ('A', 1) == Just (('A', 1), White, Rook False) then
+                    if causeCheck game ((('E', 1), White, King False), ('D', 1)) side == False && causeCheck game ((('E', 1), White, King False), ('C', 1)) side == False then
+                        [((('E', 1), White, King True), ('C', 1))] 
+                    else []
+                else []
+            else if inCheck game Black == False && getPiece game ('D', 8) == Nothing && getPiece game ('C', 8) == Nothing && getPiece game ('B', 8) == Nothing && getPiece game ('E', 8) == Just (('E', 8), Black, King False) && getPiece game ('A', 8) == Just (('A', 8), Black, Rook False) then
+                    if causeCheck game ((('E', 8), Black, King False), ('D', 8)) side == False && causeCheck game ((('E', 8), Black, King False), ('C', 8)) side == False then
+                        [((('E', 8), White, King True), ('C', 8))] 
+                    else []
+                else []
 
---Update the game after a move is made
+        in legalMoves ++ kingSideCastle ++ queenSideCastle
+
 makeMove :: Game -> Move -> Game
 makeMove (side, positions) (piece@(startPos, pieceSide, pieceType), endPos) =
     if (piece, endPos) `elem` legalPieceMoves (side, positions) piece
     then 
         let 
             newSide = if side == White then Black else White
-            newPositions = map (\p@(pos, s, pt) -> if pos == startPos then (endPos, s, pt) else p)
-                                (filter (\(pos, _, _) -> pos /= endPos) positions)
+            isCastlingMove = case pieceType of
+                    King _ -> abs ((ord (fst endPos)) - (ord (fst startPos))) == 2
+                    _      -> False
+            newPositions = 
+                if isCastlingMove
+                then
+                    let rookStartPos = if fst endPos > fst startPos
+                                       then ('H', snd startPos)  -- King-side castling
+                                       else ('A', snd startPos)  -- Queen-side castling
+                        rookEndPos = if fst endPos > fst startPos
+                                     then ('F', snd startPos)  -- King-side castling
+                                     else ('D', snd startPos)  -- Queen-side castling
+                    in map (\p@(pos, s, pt) -> 
+                                if pos == startPos 
+                                then (endPos, s, King True)       -- Move the King
+                                else if pos == rookStartPos 
+                                then (rookEndPos, s, Rook True)   -- Move the Rook
+                                else p) positions
+                else 
+                    -- ChatGPT helped write this part about modifying the pawn, rook and king booleans after a move
+                    map (\p@(pos, s, pt) -> 
+                            if pos == startPos 
+                            then case pt of
+                                    Pawn _ -> (endPos, s, Pawn (abs (snd endPos - snd startPos) == 2))
+                                    Rook _ -> (endPos, s, Rook True)
+                                    King _ -> (endPos, s, King True)
+                                    _ -> (endPos, s, pt)
+                            else case pt of
+                                    Pawn _ -> (pos, s, Pawn False)  -- Reset enpassantable for all other pawns
+                                    _ -> p
+                    ) (filter (\(pos, _, _) -> pos /= endPos) positions)
         in (newSide, newPositions)
     else error "Such move is not allowed"
+
+--Quick move calls makeMove but uses two positions instead of the longer alternative
+quickMove :: Game -> Position -> Position -> Game
+quickMove game startPos endPos =
+    case getPiece game startPos of
+        -- Handle the pawn case
+        Just (pos, side, Pawn _) -> 
+            let isTwoSquareMove = abs (snd startPos - snd endPos) == 2
+                move = if isTwoSquareMove
+                       then ((pos, side, Pawn True), endPos)  -- Set Pawn True for two-square move
+                       else ((pos, side, Pawn False), endPos) -- Keep Pawn False for one-square move
+            in makeMove game move
+        
+        -- Handle the rook case
+        Just (pos, side, Rook _) -> 
+            let move = ((pos, side, Rook True), endPos)  -- Set Rook True after it moves
+            in makeMove game move
+
+        -- Handle the king case
+        Just (pos, side, King _) -> 
+            let move = ((pos, side, King True), endPos)  -- Set King True after it moves
+            in makeMove game move
+
+        -- Default case for other pieces
+        Just piece -> 
+            let move = (piece, endPos)
+            in makeMove game move
+
+        Nothing -> error "No piece at starting position"
 
 --Check if a move puts one side's king in check. Also used to make sure you can't move a piece that is pinned to your king
 --causeCheck White checks if a move will put the White king in check.
@@ -257,15 +482,14 @@ causeCheck game move side =
     let newGame = makeMove game move in
     inCheck newGame side
 
---Check if a specific side is currently in check
+-- Check if a specific side is currently in check
 inCheck :: Game -> Side -> Bool
 inCheck game currentSide =
     let opponentSide = if currentSide == White then Black else White
-        opponentMoves = allLegalMoves game opponentSide
+        opponentPieces = filter (\(_, s, _) -> s == opponentSide) (snd game)
+        opponentMoves = concatMap (legalPieceMoves game) opponentPieces
         kingPosition = getKingPosition game currentSide
-    in
-        --Checks to see if the king's position exists as a valid move for any of the opponent's pieces
-        any (\(_, pos) -> pos == kingPosition) opponentMoves
+    in any (\(_, pos) -> pos == kingPosition) opponentMoves
 
 --Takes a piece and returns it's current position
 getPosition :: Game -> Piece -> Position
