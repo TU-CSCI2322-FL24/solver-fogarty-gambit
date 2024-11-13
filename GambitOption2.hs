@@ -18,8 +18,10 @@ type Piece = (Position, Side, PieceType)
 
 type Move = (Piece, Position) --Maybe move should take a position instead of a piece
 
-type Game = (CurrentTurn, [Piece])
+type Game = (CurrentTurn, [Piece], Int)
 
+getSnd :: (a, b, c) -> b
+getSnd (a, b, c) = b
 
 
 reverseList :: [a] -> [a]
@@ -66,9 +68,9 @@ emptyBoard = whiteFirstRow ++ blackFirstRow ++ whiteFirstRow ++ blackFirstRow ++
 displayBoard :: Game -> Side -> IO ()
 displayBoard game pov = let
     --Association list of every piece on the board
-    positionsAndPieces = [(pos, (side, pieceType)) | (pos, side, pieceType) <- snd game]
+    positionsAndPieces = [(pos, (side, pieceType)) | (pos, side, pieceType) <- getSnd game]
 
-    (missingWhitePieces, missingBlackPieces) = getMissingPieces (snd game)
+    (missingWhitePieces, missingBlackPieces) = getMissingPieces (getSnd game)
     missingWhiteStr = map pieceToChar missingWhitePieces
     missingBlackStr = map pieceToChar missingBlackPieces
 
@@ -103,12 +105,12 @@ getMissingPieces [] = ([], [])
 getMissingPieces pieces = let
     blackPieces = [piece | (pos, color, piece) <- pieces, color == Black]
     whitePieces = [piece | (pos, color, piece) <- pieces, color == White]
-    (missingWhitePawns, missingBlackPawns) = ((replicate (length [piece | (pos, color, piece) <- snd initialGame, color == White, (piece == Pawn True || piece == Pawn False)] - length [piece | piece <- whitePieces, (piece == Pawn True || piece == Pawn False)]) (('A', 1), White, Pawn False)), replicate (length [piece | (pos, color, piece) <- snd initialGame, color == Black, (piece == Pawn True || piece == Pawn False)] - length [piece | piece <- blackPieces, (piece == Pawn True || piece == Pawn False)]) (('A', 1), Black, Pawn False))
-    (missingWhiteRooks, missingBlackRooks) = ((replicate (length [piece | (pos, color, piece) <- snd initialGame, color == White, (piece == Rook True || piece == Rook False)] - length [piece | piece <- whitePieces, (piece == Rook True || piece == Rook False)]) (('A', 1), White, Rook False)), replicate (length [piece | (pos, color, piece) <- snd initialGame, color == Black, (piece == Rook True || piece == Rook False)] - length [piece | piece <- blackPieces, (piece == Rook True || piece == Rook False)]) (('A', 1), Black, Rook False))
-    (missingWhiteKings, missingBlackKings) = ((replicate (length [piece | (pos, color, piece) <- snd initialGame, color == White, (piece == King True || piece == King False)] - length [piece | piece <- whitePieces, (piece == King True || piece == King False)]) (('A', 1), White, King False)), replicate (length [piece | (pos, color, piece) <- snd initialGame, color == Black, (piece == King True || piece == King False)] - length [piece | piece <- blackPieces, (piece == King True || piece == King False)]) (('A', 1), Black, King False))
-    (missingWhiteQueens, missingBlackQueens) = ((replicate (length [piece | (pos, color, piece) <- snd initialGame, color == White, piece == Queen] - length [piece | piece <- whitePieces, piece == Queen]) (('A', 1), White, Queen)), replicate (length [piece | (pos, color, piece) <- snd initialGame, color == Black, piece == Queen] - length [piece | piece <- blackPieces, piece == Queen]) (('A', 1), Black, Queen))
-    (missingWhiteBishops, missingBlackBishops) = ((replicate (length [piece | (pos, color, piece) <- snd initialGame, color == White, piece == Bishop] - length [piece | piece <- whitePieces, piece == Bishop]) (('A', 1), White, Bishop)), replicate (length [piece | (pos, color, piece) <- snd initialGame, color == Black, piece == Bishop] - length [piece | piece <- blackPieces, piece == Bishop]) (('A', 1), Black, Bishop))
-    (missingWhiteKnights, missingBlackKnights) = ((replicate (length [piece | (pos, color, piece) <- snd initialGame, color == White, piece == Knight] - length [piece | piece <- whitePieces, piece == Knight]) (('A', 1), White, Knight)), replicate (length [piece | (pos, color, piece) <- snd initialGame, color == Black, piece == Knight] - length [piece | piece <- blackPieces, piece == Knight]) (('A', 1), Black, Knight))
+    (missingWhitePawns, missingBlackPawns) = ((replicate (length [piece | (pos, color, piece) <- getSnd initialGame, color == White, (piece == Pawn True || piece == Pawn False)] - length [piece | piece <- whitePieces, (piece == Pawn True || piece == Pawn False)]) (('A', 1), White, Pawn False)), replicate (length [piece | (pos, color, piece) <- getSnd initialGame, color == Black, (piece == Pawn True || piece == Pawn False)] - length [piece | piece <- blackPieces, (piece == Pawn True || piece == Pawn False)]) (('A', 1), Black, Pawn False))
+    (missingWhiteRooks, missingBlackRooks) = ((replicate (length [piece | (pos, color, piece) <- getSnd initialGame, color == White, (piece == Rook True || piece == Rook False)] - length [piece | piece <- whitePieces, (piece == Rook True || piece == Rook False)]) (('A', 1), White, Rook False)), replicate (length [piece | (pos, color, piece) <- getSnd initialGame, color == Black, (piece == Rook True || piece == Rook False)] - length [piece | piece <- blackPieces, (piece == Rook True || piece == Rook False)]) (('A', 1), Black, Rook False))
+    (missingWhiteKings, missingBlackKings) = ((replicate (length [piece | (pos, color, piece) <- getSnd initialGame, color == White, (piece == King True || piece == King False)] - length [piece | piece <- whitePieces, (piece == King True || piece == King False)]) (('A', 1), White, King False)), replicate (length [piece | (pos, color, piece) <- getSnd initialGame, color == Black, (piece == King True || piece == King False)] - length [piece | piece <- blackPieces, (piece == King True || piece == King False)]) (('A', 1), Black, King False))
+    (missingWhiteQueens, missingBlackQueens) = ((replicate (length [piece | (pos, color, piece) <- getSnd initialGame, color == White, piece == Queen] - length [piece | piece <- whitePieces, piece == Queen]) (('A', 1), White, Queen)), replicate (length [piece | (pos, color, piece) <- getSnd initialGame, color == Black, piece == Queen] - length [piece | piece <- blackPieces, piece == Queen]) (('A', 1), Black, Queen))
+    (missingWhiteBishops, missingBlackBishops) = ((replicate (length [piece | (pos, color, piece) <- getSnd initialGame, color == White, piece == Bishop] - length [piece | piece <- whitePieces, piece == Bishop]) (('A', 1), White, Bishop)), replicate (length [piece | (pos, color, piece) <- getSnd initialGame, color == Black, piece == Bishop] - length [piece | piece <- blackPieces, piece == Bishop]) (('A', 1), Black, Bishop))
+    (missingWhiteKnights, missingBlackKnights) = ((replicate (length [piece | (pos, color, piece) <- getSnd initialGame, color == White, piece == Knight] - length [piece | piece <- whitePieces, piece == Knight]) (('A', 1), White, Knight)), replicate (length [piece | (pos, color, piece) <- getSnd initialGame, color == Black, piece == Knight] - length [piece | piece <- blackPieces, piece == Knight]) (('A', 1), Black, Knight))
     in (missingWhitePawns ++ missingWhiteKnights ++ missingWhiteBishops ++ missingWhiteRooks ++ missingWhiteQueens ++ missingWhiteKings, missingBlackPawns ++ missingBlackKnights ++ missingBlackBishops ++ missingBlackRooks ++ missingBlackQueens ++ missingBlackKings)
 
 
@@ -116,7 +118,7 @@ allPositions :: [Position]
 allPositions = [(x, y) | x <- ['A'..'H'], y <- [1..8]]
 
 initialGame :: Game
-initialGame = (White, initialPieces) where
+initialGame = (White, initialPieces, 0) where
     initialPieces = initialPawns ++ initialRooks ++ initialKnights ++ initialBishops ++ initialQueens ++ initialKings where
         initialPawns = [ ((col, if side == White then 2 else 7), side, Pawn False) | side <- [White, Black], col <- ['A'..'H']]
         initialRooks = [ ((col, if side == White then 1 else 8), side, Rook False) | side <- [White, Black], col <- ['A','H']]
@@ -127,7 +129,7 @@ initialGame = (White, initialPieces) where
 
 -- Calculates the difference in material between the input side and the other side
 getMaterial :: Game -> Side -> Int
-getMaterial (_, pieces) side =
+getMaterial (_, pieces, _) side =
     let 
         -- Assigns a material value to each piece type
         pieceValue :: PieceType -> Int
@@ -159,12 +161,12 @@ getMaterialWinner game
 
 getWinner :: Game -> Maybe Winner
 getWinner game =
-    let (currentTurn, _) = game
+    let (currentTurn, _, _) = game
         otherSide = if currentTurn == White then Black else White 
         in
             if checkMate game currentTurn then Just (Win otherSide)
             else if checkMate game otherSide then Just (Win currentTurn)
-                 else if staleMate game || drawByMaterial game then Just Tie
+                 else if staleMate game || drawByMaterial game || drawBy50MoveRule game then Just Tie
                     else Nothing
 
 --Get every possible move given a specfic piece
@@ -384,7 +386,7 @@ legalPieceMoves game (pos, side, pieceType) =
 --Get every possible move for a side, including castling
 allLegalMoves :: Game -> Side -> [Move]
 allLegalMoves game side =
-    let sidePieces = filter (\(_, s, _) -> s == side) (snd game)
+    let sidePieces = filter (\(_, s, _) -> s == side) (getSnd game)
         allMoves = concatMap (legalPieceMoves game) sidePieces
         legalMoves = filter (\move -> not (causeCheck game move side)) allMoves
         kingSideCastle :: [Move] 
@@ -417,12 +419,18 @@ allLegalMoves game side =
         in legalMoves ++ kingSideCastle ++ queenSideCastle
 
 makeMove :: Game -> Move -> Game
-makeMove (side, positions) (piece@(startPos, pieceSide, pieceType), endPos) =
+makeMove (side, positions, fiftyMoveCounter) (piece@(startPos, pieceSide, pieceType), endPos) =
     if side == pieceSide then
-        if (piece, endPos) `elem` legalPieceMoves (side, positions) piece -- && not (causeCheck (side, positions) ((startPos, pieceSide, pieceType), endPos) side)
+        if (piece, endPos) `elem` legalPieceMoves (side, positions, fiftyMoveCounter) piece -- && not (causeCheck (side, positions) ((startPos, pieceSide, pieceType), endPos) side)
         then 
             let 
                 newSide = if side == White then Black else White
+                -- Determine if this move is a capture or pawn move for the 50-move rule
+                isCapture = isJust (getPiece (side, positions, fiftyMoveCounter) endPos)
+                isPawnMove = case pieceType of
+                    Pawn _ -> True
+                    _      -> False
+                newFiftyMoveCounter = if isCapture || isPawnMove then 0 else fiftyMoveCounter + 1
                 isCastlingMove = case pieceType of
                         King _ -> abs ((ord (fst endPos)) - (ord (fst startPos))) == 2
                         _      -> False
@@ -454,7 +462,7 @@ makeMove (side, positions) (piece@(startPos, pieceSide, pieceType), endPos) =
                                         Pawn _ -> (pos, s, Pawn False)  -- Reset enpassantable for all other pawns
                                         _ -> p
                         ) (filter (\(pos, _, _) -> pos /= endPos) positions)
-            in (newSide, newPositions)
+            in (newSide, newPositions, newFiftyMoveCounter)
         else error "Such move is not allowed"
     else error ("It is not " ++ show (if side == White then Black else White) ++ "'s turn")
 
@@ -495,15 +503,18 @@ checkMate game side =
 --Check if the current turn of the game as no moves but is also not in check
 staleMate :: Game -> Bool
 staleMate game =
-    let (currentTurn, _) = game in
+    let (currentTurn, _, _) = game in
         length (allLegalMoves game currentTurn) == 0 && not (inCheck game currentTurn)
 
 drawByMaterial :: Game -> Bool
 drawByMaterial game =
-    let (currentTurn, pieces) = game
+    let (currentTurn, pieces, _) = game
         currentTurnPieces = filter (\(_, side, _) -> side == currentTurn) pieces
         otherSidePieces = filter (\(_, side, _) -> side /= currentTurn) pieces in
             length currentTurnPieces == 1 || length otherSidePieces == 1
+
+drawBy50MoveRule :: Game -> Bool
+drawBy50MoveRule (_, _, fiftyMoveCounter) = fiftyMoveCounter >= 100
 
 --Check if a move puts one side's king in check. Also used to make sure you can't move a piece that is pinned to your king
 --causeCheck White checks if a move will put the White king in check.
@@ -516,27 +527,27 @@ causeCheck game move side =
 inCheck :: Game -> Side -> Bool
 inCheck game currentSide =
     let opponentSide = if currentSide == White then Black else White
-        opponentPieces = filter (\(_, s, _) -> s == opponentSide) (snd game)
+        opponentPieces = filter (\(_, s, _) -> s == opponentSide) (getSnd game)
         opponentMoves = concatMap (legalPieceMoves game) opponentPieces
         kingPosition = getKingPosition game currentSide
     in any (\(_, pos) -> pos == kingPosition) opponentMoves
 
 --Takes a piece and returns it's current position
 getPosition :: Game -> Piece -> Position
-getPosition (_, pieces) piece =
+getPosition (_, pieces, _) piece =
     case lookup piece (map (\p@(pos, _, _) -> (p, pos)) pieces) of
         Just pos -> pos
         Nothing -> error "Piece not found on the board"
 
 getKingPosition :: Game -> Side -> Position
-getKingPosition (_, pieces) side =
+getKingPosition (_, pieces, _) side =
     case find (\(_, s, pt) -> s == side && case pt of King _ -> True; _ -> False) pieces of
         Just (pos, _, _) -> pos
         Nothing -> error "King not found on the board"
 
 --Takes a position and returns the current piece at that position, if any
 getPiece :: Game -> Position -> Maybe Piece
-getPiece (_, pieces) pos = 
+getPiece (_, pieces, _) pos = 
     case find (\(pPos, _, _) -> pPos == pos) pieces of
         Just piece -> Just piece
         Nothing    -> Nothing
