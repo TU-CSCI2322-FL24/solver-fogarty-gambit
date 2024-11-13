@@ -60,7 +60,7 @@ emptyBoard = whiteFirstRow ++ blackFirstRow ++ whiteFirstRow ++ blackFirstRow ++
 
 --testGame = (White, [(('A', 5), White, Pawn True)])
 
-displayBoard :: Game -> Side -> String
+displayBoard :: Game -> Side -> IO ()
 displayBoard game pov = let
     --Association list of every piece on the board
     positionsAndPieces = [(pos, (side, pieceType)) | (pos, side, pieceType) <- snd game]
@@ -90,7 +90,8 @@ displayBoard game pov = let
             then aux (out ++ [square]) (rows) (incrementPos currentPos) 
             else aux (out ++ [pieceToChar (currentPos, fst (fromJust maybePiece), snd (fromJust maybePiece))]) (rows) (incrementPos currentPos)
     --                                                        Labels for the ranks                                                   The board is printed backwards for black              Labels for the ranks, backwards
-    in if pov == White then ("\n" ++ missingWhiteStr ++ "\n  ________ \n8|" ++ (aux "" emptyBoard ('A', 8)) ++ "\b ‾‾‾‾‾‾‾‾ \n  ABCDEFGH\n\n" ++ missingBlackStr ++ "\n") else ("\n" ++ missingBlackStr ++ "\n ________ " ++ (reverseList (((aux "" emptyBoard ('A', 8)) ++ ""))) ++ "|8\n ‾‾‾‾‾‾‾‾ \n HGFEDCBA\n\n" ++ missingWhiteStr ++ "\n")
+    displayStr = if pov == White then ("\n" ++ missingWhiteStr ++ "\n  ________ \n8|" ++ (aux "" emptyBoard ('A', 8)) ++ "\b ‾‾‾‾‾‾‾‾ \n  ABCDEFGH\n\n" ++ missingBlackStr ++ "\n") else ("\n" ++ missingBlackStr ++ "\n ________ " ++ (reverseList (((aux "" emptyBoard ('A', 8)) ++ ""))) ++ "|8\n ‾‾‾‾‾‾‾‾ \n HGFEDCBA\n\n" ++ missingWhiteStr ++ "\n")
+    in putStrLn displayStr
 
 --use putStrLn in the shell to print this string
 
@@ -409,7 +410,7 @@ allLegalMoves game side =
 makeMove :: Game -> Move -> Game
 makeMove (side, positions) (piece@(startPos, pieceSide, pieceType), endPos) =
     if side == pieceSide then
-        if (piece, endPos) `elem` legalPieceMoves (side, positions) piece
+        if (piece, endPos) `elem` legalPieceMoves (side, positions) piece -- && not (causeCheck (side, positions) ((startPos, pieceSide, pieceType), endPos) side)
         then 
             let 
                 newSide = if side == White then Black else White
