@@ -7,6 +7,8 @@ data Side = White | Black deriving (Show, Eq)
 --              enpassantable   hasMoved                               hasMoved
 data PieceType = Pawn Bool | Rook Bool | Knight | Bishop | Queen | King Bool deriving (Show, Eq)
 
+data Winner = Win Side | Tie deriving (Show, Eq)
+
 type CurrentTurn = Side
 
 --type Label = Char -- 'a' to 'h' to label each piece by the column letter they start on. This might not be neccessary
@@ -17,6 +19,7 @@ type Piece = (Position, Side, PieceType)
 type Move = (Piece, Position) --Maybe move should take a position instead of a piece
 
 type Game = (CurrentTurn, [Piece])
+
 
 
 reverseList :: [a] -> [a]
@@ -122,41 +125,47 @@ initialGame = (White, initialPieces) where
         initialQueens = [ (('D', 1), White, Queen), (('D', 8), Black, Queen)]
         initialKings = [ (('E', 1), White, King False), (('E', 8), Black, King False)]
 
-getScore :: Game -> Side -> Int --Gets the difference in material of the input side vs the other side
-getScore (_, allPieces) side =
-    let sidePieces = [pieceType | (_, pieceSide, pieceType) <- allPieces, pieceSide == side]
-        otherSidePieces = [pieceType | (_, pieceSide, pieceType) <- allPieces, pieceSide /= side]
-        sideMaterial = sum [case pieceType of
-               Pawn bool -> 1
-               Rook bool  -> 5
-               Bishop -> 3
-               Knight -> 3
-               Queen  -> 9
-               King bool  -> 0
-           | pieceType <- sidePieces]
-        otherSideMaterial = sum [case pieceType of
-               Pawn bool  -> 1
-               Rook bool  -> 5
-               Bishop -> 3
-               Knight -> 3
-               Queen  -> 9
-               King bool  -> 0
-           | pieceType <- otherSidePieces]
-    in
-        if sideMaterial > otherSideMaterial then sideMaterial - otherSideMaterial else 0
+-- Calculates the difference in material between the input side and the other side
+getMaterial :: Game -> Side -> Int
+getMaterial (_, pieces) side =
+    let 
+        -- Assigns a material value to each piece type
+        pieceValue :: PieceType -> Int
+        pieceValue (Pawn _)   = 1
+        pieceValue (Rook _)   = 5
+        pieceValue Bishop     = 3
+        pieceValue Knight     = 3
+        pieceValue Queen      = 9
+        pieceValue (King _)   = 0
 
-getWinner :: Game -> Maybe Side
-getWinner game
-    | whiteScore > blackScore = Just White
-    | blackScore > whiteScore = Just Black
+        -- Calculates the total material for a given list of pieces
+        materialValue :: [Piece] -> Int
+        materialValue ps = sum [pieceValue pt | (_, _, pt) <- ps]
+
+        -- Separate pieces into those belonging to the input side and the other side
+        sideMaterial = materialValue [p | p@(_, s, _) <- pieces, s == side]
+        otherMaterial = materialValue [p | p@(_, s, _) <- pieces, s /= side]
+
+    in max 0 (sideMaterial - otherMaterial)
+
+getMaterialWinner :: Game -> Maybe Side
+getMaterialWinner game
+    | whiteMaterial > blackMaterial = Just White
+    | blackMaterial > whiteMaterial = Just Black
     | otherwise               = Nothing
   where
-    whiteScore = getScore game White
-    blackScore = getScore game Black
+    whiteMaterial = getMaterial game White
+    blackMaterial = getMaterial game Black
 
---Represent the current gameboard in a string
-showGame :: Game -> String
-showGame = undefined
+getWinner :: Game -> Maybe Winner
+getWinner game =
+    let (currentTurn, _) = game
+        otherSide = if currentTurn == White then Black else White 
+        in
+            if checkMate game currentTurn then Just (Win otherSide)
+            else if checkMate game otherSide then Just (Win currentTurn)
+                 else if staleMate game || drawByMaterial game then Just Tie
+                    else Nothing
 
 --Get every possible move given a specfic piece
 legalPieceMoves :: Game -> Piece -> [Move]
@@ -477,6 +486,24 @@ quickMove game startPos endPos =
             in makeMove game move
 
         Nothing -> error "No piece at starting position"
+
+--Check if a side is currently in the state of checkmate, aka that side is in check and has no more legal moves to be made
+checkMate :: Game -> Side -> Bool
+checkMate game side =
+    length (allLegalMoves game side) == 0 && inCheck game side
+
+--Check if the current turn of the game as no moves but is also not in check
+staleMate :: Game -> Bool
+staleMate game =
+    let (currentTurn, _) = game in
+        length (allLegalMoves game currentTurn) == 0 && not (inCheck game currentTurn)
+
+drawByMaterial :: Game -> Bool
+drawByMaterial game =
+    let (currentTurn, pieces) = game
+        currentTurnPieces = filter (\(_, side, _) -> side == currentTurn) pieces
+        otherSidePieces = filter (\(_, side, _) -> side /= currentTurn) pieces in
+            length currentTurnPieces == 1 || length otherSidePieces == 1
 
 --Check if a move puts one side's king in check. Also used to make sure you can't move a piece that is pinned to your king
 --causeCheck White checks if a move will put the White king in check.
