@@ -408,43 +408,45 @@ allLegalMoves game side =
 
 makeMove :: Game -> Move -> Game
 makeMove (side, positions) (piece@(startPos, pieceSide, pieceType), endPos) =
-    if (piece, endPos) `elem` legalPieceMoves (side, positions) piece
-    then 
-        let 
-            newSide = if side == White then Black else White
-            isCastlingMove = case pieceType of
-                    King _ -> abs ((ord (fst endPos)) - (ord (fst startPos))) == 2
-                    _      -> False
-            newPositions = 
-                if isCastlingMove
-                then
-                    let rookStartPos = if fst endPos > fst startPos
-                                       then ('H', snd startPos)  -- King-side castling
-                                       else ('A', snd startPos)  -- Queen-side castling
-                        rookEndPos = if fst endPos > fst startPos
-                                     then ('F', snd startPos)  -- King-side castling
-                                     else ('D', snd startPos)  -- Queen-side castling
-                    in map (\p@(pos, s, pt) -> 
+    if side == pieceSide then
+        if (piece, endPos) `elem` legalPieceMoves (side, positions) piece
+        then 
+            let 
+                newSide = if side == White then Black else White
+                isCastlingMove = case pieceType of
+                        King _ -> abs ((ord (fst endPos)) - (ord (fst startPos))) == 2
+                        _      -> False
+                newPositions = 
+                    if isCastlingMove
+                    then
+                        let rookStartPos = if fst endPos > fst startPos
+                                        then ('H', snd startPos)  -- King-side castling
+                                        else ('A', snd startPos)  -- Queen-side castling
+                            rookEndPos = if fst endPos > fst startPos
+                                        then ('F', snd startPos)  -- King-side castling
+                                        else ('D', snd startPos)  -- Queen-side castling
+                        in map (\p@(pos, s, pt) -> 
+                                    if pos == startPos 
+                                    then (endPos, s, King True)       -- Move the King
+                                    else if pos == rookStartPos 
+                                    then (rookEndPos, s, Rook True)   -- Move the Rook
+                                    else p) positions
+                    else 
+                        -- ChatGPT helped write this part about modifying the pawn, rook and king booleans after a move
+                        map (\p@(pos, s, pt) -> 
                                 if pos == startPos 
-                                then (endPos, s, King True)       -- Move the King
-                                else if pos == rookStartPos 
-                                then (rookEndPos, s, Rook True)   -- Move the Rook
-                                else p) positions
-                else 
-                    -- ChatGPT helped write this part about modifying the pawn, rook and king booleans after a move
-                    map (\p@(pos, s, pt) -> 
-                            if pos == startPos 
-                            then case pt of
-                                    Pawn _ -> (endPos, s, Pawn (abs (snd endPos - snd startPos) == 2))
-                                    Rook _ -> (endPos, s, Rook True)
-                                    King _ -> (endPos, s, King True)
-                                    _ -> (endPos, s, pt)
-                            else case pt of
-                                    Pawn _ -> (pos, s, Pawn False)  -- Reset enpassantable for all other pawns
-                                    _ -> p
-                    ) (filter (\(pos, _, _) -> pos /= endPos) positions)
-        in (newSide, newPositions)
-    else error "Such move is not allowed"
+                                then case pt of
+                                        Pawn _ -> (endPos, s, Pawn (abs (snd endPos - snd startPos) == 2))
+                                        Rook _ -> (endPos, s, Rook True)
+                                        King _ -> (endPos, s, King True)
+                                        _ -> (endPos, s, pt)
+                                else case pt of
+                                        Pawn _ -> (pos, s, Pawn False)  -- Reset enpassantable for all other pawns
+                                        _ -> p
+                        ) (filter (\(pos, _, _) -> pos /= endPos) positions)
+            in (newSide, newPositions)
+        else error "Such move is not allowed"
+    else error ("It is not " ++ show (if side == White then Black else White) ++ "'s turn")
 
 --Quick move calls makeMove but uses two positions instead of the longer alternative
 quickMove :: Game -> Position -> Position -> Game
