@@ -581,12 +581,57 @@ causeCheck game move side =
 
 -- Check if a specific side is currently in check
 inCheck :: Game -> Side -> Bool
-inCheck game currentSide =
-    let opponentSide = if currentSide == White then Black else White
-        opponentPieces = filter (\(_, s, _) -> s == opponentSide) (getThd game)
-        opponentMoves = concatMap (legalPieceMoves game) opponentPieces
-        kingPosition = getKingPosition game currentSide
-    in any (\(_, pos) -> pos == kingPosition) opponentMoves
+inCheck game currentSide = let (x, y) = getKingPosition game currentSide in
+    	checkLineDiag (chr(ord (x)+1), y+1) (1 ,  1) game currentSide ||
+    	checkLine     (chr(ord (x)+1), y  ) (1 ,  0) game currentSide ||
+    	checkLineDiag (chr(ord (x)+1), y-1) (1 , -1) game currentSide ||
+    	checkLine     (chr(ord (x)  ), y-1) (0 , -1) game currentSide ||
+    	checkLineDiag (chr(ord (x)-1), y-1) (-1, -1) game currentSide ||
+    	checkLine     (chr(ord (x)-1), y  ) (-1,  0) game currentSide ||
+    	checkLineDiag (chr(ord (x)-1), y+1) (-1,  1) game currentSide ||
+    	checkLine     (chr(ord (x)  ), y+1) (0 ,  1) game currentSide ||
+    	checkPawn (chr(ord (x)+1), y + (if currentSide == White then 1 else -1)) game currentSide ||
+    	checkPawn (chr(ord (x)-1), y + (if currentSide == White then 1 else -1)) game currentSide ||
+        checkKing (x, y) game currentSide ||
+    	checkKnights (chr(ord (x)), y) game currentSide
+
+checkLine :: Position -> (Int, Int)-> Game -> Side -> Bool
+checkLine (x, y) (xAdd, yAdd) game side = if (ord(x) > 72 || ord(x) < 65 || y > 8 || y < 1) then False else
+                                        let otherSide = if side == White then Black else White in case getPiece game (x, y) of 
+                                            Just (_, v, Queen) -> v == otherSide
+                                            Just (_, v, Rook _) -> v == otherSide
+                                            Just (_, _, _) -> False
+                                            otherwise -> checkLine (chr(ord(x) + xAdd), y + yAdd) (xAdd, yAdd) game side
+checkLineDiag :: Position -> (Int, Int)-> Game -> Side -> Bool
+checkLineDiag (x, y) (xAdd, yAdd) game side = if (ord(x) > 72 || ord(x) < 65 || y > 8 || y < 1) then False else
+                                        let otherSide = if side == White then Black else White in case getPiece game (x, y) of 
+                                            Just (_, v, Queen) -> v == otherSide
+                                            Just (_, v, Bishop) -> v == otherSide
+                                            Just (_, _, _) -> False
+                                            otherwise -> checkLineDiag (chr(ord(x) + xAdd), y + yAdd) (xAdd, yAdd) game side
+
+
+checkPawn :: Position -> Game -> Side -> Bool
+checkPawn (x, y) game side = if y > 8 then False else
+                         	if ord(x) > 72 || ord(x) < 65 then False else 
+                            let otherSide = if side == White then Black else White in case getPiece game (x, y) of 
+                                            Just (_, v, Pawn _) -> v == otherSide
+                                            otherwise -> False
+
+checkKing :: Position -> Game -> Side -> Bool
+checkKing (x, y) game side = let (u, v) = getKingPosition game (if side == White then Black else White) in
+    (abs(ord(x) - ord(u)) <= 1 && abs(y-v) <= 1)
+
+checkKnights :: Position -> Game -> Side -> Bool
+checkKnights (x, y) game current = checkKnight ([(chr(ord(x) + z), y + u) | z <- [1, -1], u <- [2, -2]] ++ [(chr(ord(x) + z), y + u) | z <- [2, -2], u <- [1, -1]]) game otherside
+                        	where otherside = if current == White then Black else White
+
+checkKnight :: [Position] -> Game -> Side -> Bool
+checkKnight [] _ _ = False
+checkKnight ((x, y): xs) game side = if ord(x) > 72 || ord(x) < 65 || y > 8 || y < 1 then checkKnight xs game side else
+                                      	case getPiece game (x, y) of 
+                                            Just ((x, y), v, Knight) -> if v == side then True else checkKnight xs game side
+                                            otherwise -> checkKnight xs game side
 
 --Takes a piece and returns it's current position
 getPosition :: Game -> Piece -> Position
