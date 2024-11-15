@@ -36,3 +36,7 @@ hangingRookGame = (0, Black, [(('B',2), White, Pawn False), (('F',2), White, Paw
 promoteIntoCheckGame :: Game
 promoteIntoCheckGame = (0, Black, [(('B',4), White, Pawn False), (('E',1), White, King True),
     (('H',2), Black, Pawn False), (('B',8), Black, King True)],[])
+
+enPassantGame :: Game
+enPassantGame = (0, Black, [(('D',4), White, Pawn True), (('E',1), White, King True),
+    (('E',4), Black, Pawn False), (('B',8), Black, King True)],[])
