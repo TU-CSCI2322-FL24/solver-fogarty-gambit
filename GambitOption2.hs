@@ -1,3 +1,4 @@
+module GambitOption2 where
 import Prelude
 import Data.Maybe
 import Data.List (find)
