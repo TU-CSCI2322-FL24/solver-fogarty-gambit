@@ -222,10 +222,20 @@ legalPieceMoves game (pos, side, pieceType) =
                              then [((pos, side, Pawn True), (col, forwardTwo))]
                              else []
 
+                -- Generate capture moves, with promotion options if on promotion row
                 captureMoves = concat
-                    [ if canCaptureLeft then [((pos, side, Pawn False), leftDiag)] else []
-                    , if canCaptureRight then [((pos, side, Pawn False), rightDiag)] else []
+                    [ if canCaptureLeft then
+                          if isPromotionRow 
+                          then [((pos, side, promotedPiece), leftDiag) | promotedPiece <- promotionPieces]
+                          else [((pos, side, Pawn False), leftDiag)]
+                      else []
+                    , if canCaptureRight then
+                          if isPromotionRow 
+                          then [((pos, side, promotedPiece), rightDiag) | promotedPiece <- promotionPieces]
+                          else [((pos, side, Pawn False), rightDiag)]
+                      else []
                     ]
+
                 enPassantMoves = concat
                     [ if enPassantLeft then [((pos, side, Pawn False), leftDiag)] else []
                     , if enPassantRight then [((pos, side, Pawn False), rightDiag)] else []
@@ -435,6 +445,22 @@ makeMove (fiftyMoveCounter, side, positions, boardHistory) (piece@(startPos, pie
                     Pawn _ -> True
                     _      -> False
                 newFiftyMoveCounter = if isCapture || isPawnMove then 0 else fiftyMoveCounter + 1
+
+                -- Determine if this move is a promotion move
+                isPromotionMove = case pieceType of
+                    Pawn _ -> snd endPos == 1 || snd endPos == 8
+                    _      -> False
+
+                -- Determine if this move is an en passant capture
+                isEnPassantCapture = case pieceType of
+                    Pawn _ -> snd startPos /= snd endPos && not isCapture
+                    _      -> False
+
+                -- Calculate the captured pawn’s position in an en passant move
+                capturedPawnPos = if isEnPassantCapture
+                                  then (fst endPos, snd startPos)  -- The captured pawn is one row behind the pawn's landing position
+                                  else endPos
+
                 isCastlingMove = case pieceType of
                         King _ -> abs ((ord (fst endPos)) - (ord (fst startPos))) == 2
                         _      -> False
@@ -474,9 +500,12 @@ makeMove (fiftyMoveCounter, side, positions, boardHistory) (piece@(startPos, pie
 --Quick move calls makeMove but uses two positions instead of the longer alternative
 quickMove :: Game -> Position -> Position -> Game
 quickMove game startPos endPos =
+    let (_, currentTurn, _, _) = game in
     case getPiece game startPos of
         -- Handle the pawn case
-        Just (pos, side, Pawn _) -> 
+        Just (pos, side, Pawn _) ->
+            if (currentTurn == White && snd startPos == 7 && snd endPos == 8) || (currentTurn == Black && snd startPos == 2 && snd endPos == 1) then error "Use promotePiece <startPos> <endPos> <pieceType> instead!"
+            else
             let isTwoSquareMove = abs (snd startPos - snd endPos) == 2
                 move = if isTwoSquareMove
                        then ((pos, side, Pawn True), endPos)  -- Set Pawn True for two-square move
@@ -499,6 +528,21 @@ quickMove game startPos endPos =
             in makeMove game move
 
         Nothing -> error "No piece at starting position"
+
+promotePiece :: Game -> Position -> Position -> PieceType -> Game
+promotePiece game startPos endPos promotionPiece =
+    let (_, currentTurn, _, _) = game in
+        if (currentTurn == White && snd startPos == 7 && snd endPos == 8) || (currentTurn == Black && snd startPos == 2 && snd endPos == 1) then
+        case getPiece game startPos of
+            Just (pos, side, Pawn _) ->
+                let move = ((pos, side, promotionPiece), endPos)
+                in makeMove game move
+
+            Just piece -> 
+                error "Not a pawn at starting position"
+
+            Nothing -> error "No piece at starting position"
+        else error "not a piece able to be promoted"
 
 --Check if a side is currently in the state of checkmate, aka that side is in check and has no more legal moves to be made
 checkMate :: Game -> Side -> Bool
