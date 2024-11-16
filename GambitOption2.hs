@@ -431,7 +431,8 @@ allLegalMoves game side =
                     else []
                 else []
 
-        in legalMoves ++ kingSideCastle ++ queenSideCastle
+        --in legalMoves ++ kingSideCastle ++ queenSideCastle
+        in filter (\move -> not (causeCheck game move side)) legalMoves ++ kingSideCastle ++ queenSideCastle
 
 makeMove :: Game -> Move -> Game
 makeMove (fiftyMoveCounter, side, positions, boardHistory) (piece@(startPos, pieceSide, pieceType), endPos) =
@@ -457,7 +458,7 @@ makeMove (fiftyMoveCounter, side, positions, boardHistory) (piece@(startPos, pie
                 isEnPassantCapture =
                     case getPiece (fiftyMoveCounter, side, positions, boardHistory) endPos of
                         Just _ -> False
-                        Nothing -> if fst startPos /= fst endPos then True else False
+                        Nothing -> if pieceType == (Pawn False) && fst startPos /= fst endPos then True else False
                 
                 -- Determine the captured pawn's position for en passant
                 capturedPawnPos = 
@@ -574,13 +575,27 @@ staleMate game =
     let (_, currentTurn, _, _) = game in
         length (allLegalMoves game currentTurn) == 0 && not (inCheck game currentTurn)
 
---Check if either side only has a king left
+--Check if the game is in a default tie by material state
 drawByMaterial :: Game -> Bool
 drawByMaterial game =
-    let (_, currentTurn, pieces, _) = game
-        currentTurnPieces = filter (\(_, side, _) -> side == currentTurn) pieces
-        otherSidePieces = filter (\(_, side, _) -> side /= currentTurn) pieces in
-            length currentTurnPieces == 1 || length otherSidePieces == 1
+    let (_, _, pieces, _) = game
+        pieceTypes = [pieceType | (_, _, pieceType) <- pieces]
+        count :: PieceType -> Int
+        count pType = length [pt | pt <- pieceTypes, pt == pType]
+        bishopsSameColor :: Bool
+        bishopsSameColor =
+            let bishopPositions = [pos | (pos, _, Bishop) <- pieces]
+                isLightSquare (col, row) = (ord col + row) `mod` 2 == 0
+            in all isLightSquare bishopPositions || all (not . isLightSquare) bishopPositions
+    in
+        -- Check for King vs. King
+        length pieces == 2 && all (\(_, _, p) -> case p of King _ -> True; _ -> False) pieces
+        -- King and Bishop vs. King
+        || length pieces == 3 && count (Bishop) == 1
+        -- King and Knight vs. King
+        || length pieces == 3 && count (Knight) == 1
+        -- King and Bishop vs. King and Bishop (same-colored bishops)
+        || length pieces == 4 && count (Bishop) == 2 && bishopsSameColor
 
 drawBy50MoveRule :: Game -> Bool
 drawBy50MoveRule (fiftyMoveCounter, _, _, _) = fiftyMoveCounter >= 100
@@ -650,13 +665,6 @@ checkKnight ((x, y): xs) game side = if ord(x) > 72 || ord(x) < 65 || y > 8 || y
                                       	case getPiece game (x, y) of 
                                             Just ((x, y), v, Knight) -> if v == side then True else checkKnight xs game side
                                             otherwise -> checkKnight xs game side
-
---Takes a piece and returns it's current position
-getPosition :: Game -> Piece -> Position
-getPosition (_, _, pieces, _) piece =
-    case lookup piece (map (\p@(pos, _, _) -> (p, pos)) pieces) of
-        Just pos -> pos
-        Nothing -> error "Piece not found on the board"
 
 getKingPosition :: Game -> Side -> Position
 getKingPosition (_, _, pieces, _) side =
