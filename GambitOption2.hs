@@ -242,8 +242,8 @@ legalPieceMoves game (pos, side, pieceType) =
                     , if enPassantRight then [((pos, side, Pawn False), rightDiag)] else []
                     ]
 
-            --in filter (\move -> not (causeCheck game move side)) singleMove ++ doubleMove ++ captureMoves ++ enPassantMoves
-            in singleMove ++ doubleMove ++ captureMoves ++ enPassantMoves
+            in filter (\move -> not (causeCheck game move side)) singleMove ++ doubleMove ++ captureMoves ++ enPassantMoves
+            --in singleMove ++ doubleMove ++ captureMoves ++ enPassantMoves
 
         Rook hasMoved ->
             let (col, row) = pos  -- Current position of the rook
@@ -271,8 +271,8 @@ legalPieceMoves game (pos, side, pieceType) =
                 leftMoves = [ ((pos, side, Rook True), p) | p <- rookMovesInDirection positionsLeft ]
                 rightMoves = [ ((pos, side, Rook True), p) | p <- rookMovesInDirection positionsRight ]
 
-            --in filter (\move -> not (causeCheck game move side)) upMoves ++ downMoves ++ leftMoves ++ rightMoves
-            in upMoves ++ downMoves ++ leftMoves ++ rightMoves
+            in filter (\move -> not (causeCheck game move side)) upMoves ++ downMoves ++ leftMoves ++ rightMoves
+            --in upMoves ++ downMoves ++ leftMoves ++ rightMoves
         
         Knight ->
             let (col, row) = pos  -- Current position of the knight
@@ -298,8 +298,8 @@ legalPieceMoves game (pos, side, pieceType) =
                             Nothing -> True  -- Empty square, valid move
                             Just (_, pieceSide, _) -> pieceSide /= side  -- Opponent's piece, valid move
                      ]
-            --in filter (\move -> not (causeCheck game move side)) validMoves
-            in validMoves
+            in filter (\move -> not (causeCheck game move side)) validMoves
+            --in validMoves
 
         Bishop ->
             let (col, row) = pos  -- Current position of the bishop
@@ -327,8 +327,8 @@ legalPieceMoves game (pos, side, pieceType) =
                 downRightMoves = [ ((pos, side, Bishop), p) | p <- bishopMovesInDirection positionsDownRight ]
                 downLeftMoves = [ ((pos, side, Bishop), p) | p <- bishopMovesInDirection positionsDownLeft ]
 
-            --in filter (\move -> not (causeCheck game move side)) upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
-            in upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
+            in filter (\move -> not (causeCheck game move side)) upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
+            --in upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
 
         Queen ->
             let (col, row) = pos  -- Current position of the queen
@@ -367,8 +367,8 @@ legalPieceMoves game (pos, side, pieceType) =
                 downRightMoves = [ ((pos, side, Queen), p) | p <- queenMovesInDirection positionsDownRight ]
                 downLeftMoves = [ ((pos, side, Queen), p) | p <- queenMovesInDirection positionsDownLeft ]
 
-            --in filter (\move -> not (causeCheck game move side)) upMoves ++ downMoves ++ leftMoves ++ rightMoves ++ upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
-            in upMoves ++ downMoves ++ leftMoves ++ rightMoves ++ upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
+            in filter (\move -> not (causeCheck game move side)) upMoves ++ downMoves ++ leftMoves ++ rightMoves ++ upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
+            --in upMoves ++ downMoves ++ leftMoves ++ rightMoves ++ upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
         
         King hasMoved ->
             let (col, row) = pos  -- Current position of the king
@@ -394,16 +394,16 @@ legalPieceMoves game (pos, side, pieceType) =
                                     Nothing -> True  -- Empty square, valid move
                                     Just (_, pieceSide, _) -> pieceSide /= side  -- Opponent's piece, valid move
                             ]
-            --in filter (\move -> not (causeCheck game move side)) validMoves
-            in validMoves
+            in filter (\move -> not (causeCheck game move side)) validMoves
+            --in validMoves
             
 
 --Get every possible move for a side, including castling
 allLegalMoves :: Game -> Side -> [Move]
 allLegalMoves game side =
     let sidePieces = filter (\(_, s, _) -> s == side) (getThd game)
-        allMoves = concatMap (legalPieceMoves game) sidePieces
-        legalMoves = filter (\move -> not (causeCheck game move side)) allMoves
+        legalMoves = concatMap (legalPieceMoves game) sidePieces
+        --legalMoves = filter (\move -> not (causeCheck game move side)) allMoves
         kingSideCastle :: [Move] 
         kingSideCastle =
             if side == White then
@@ -436,8 +436,8 @@ allLegalMoves game side =
 makeMove :: Game -> Move -> Game
 makeMove (fiftyMoveCounter, side, positions, boardHistory) (piece@(startPos, pieceSide, pieceType), endPos) =
     if side == pieceSide then
-        if (piece, endPos) `elem` legalPieceMoves (fiftyMoveCounter, side, positions, boardHistory) piece -- && not (causeCheck (side, positions) ((startPos, pieceSide, pieceType), endPos) side)
-        then 
+        --if (piece, endPos) `elem` legalPieceMoves (fiftyMoveCounter, side, positions, boardHistory) piece -- && not (causeCheck (side, positions) ((startPos, pieceSide, pieceType), endPos) side)
+        --then 
             let 
                 newSide = if side == White then Black else White
                 -- Determine if this move is a capture or pawn move for the 50-move rule
@@ -448,19 +448,22 @@ makeMove (fiftyMoveCounter, side, positions, boardHistory) (piece@(startPos, pie
                 newFiftyMoveCounter = if isCapture || isPawnMove then 0 else fiftyMoveCounter + 1
 
                 -- Determine if this move is a promotion move
-                isPromotionMove = case pieceType of
-                    Pawn _ -> snd endPos == 1 || snd endPos == 8
-                    _      -> False
+                isPromotionMove = 
+                    case getPiece (fiftyMoveCounter, side, positions, boardHistory) startPos of
+                        Just (_, _, startPieceType) -> startPieceType /= pieceType
+                        Nothing -> False
 
                 -- Determine if this move is an en passant capture
-                isEnPassantCapture = case pieceType of
-                    Pawn _ -> snd startPos /= snd endPos && not isCapture
-                    _      -> False
-
-                -- Calculate the captured pawn’s position in an en passant move
-                capturedPawnPos = if isEnPassantCapture
-                                  then (fst endPos, snd startPos)  -- The captured pawn is one row behind the pawn's landing position
-                                  else endPos
+                isEnPassantCapture =
+                    case getPiece (fiftyMoveCounter, side, positions, boardHistory) endPos of
+                        Just _ -> False
+                        Nothing -> if fst startPos /= fst endPos then True else False
+                
+                -- Determine the captured pawn's position for en passant
+                capturedPawnPos = 
+                    if isEnPassantCapture 
+                    then (fst endPos, snd startPos) -- One row behind the landing position
+                    else endPos
 
                 isCastlingMove = case pieceType of
                         King _ -> abs ((ord (fst endPos)) - (ord (fst startPos))) == 2
@@ -480,9 +483,24 @@ makeMove (fiftyMoveCounter, side, positions, boardHistory) (piece@(startPos, pie
                                     else if pos == rookStartPos 
                                     then (rookEndPos, s, Rook True)   -- Move the Rook
                                     else p) positions
-                    else 
-                        -- ChatGPT helped write this part about modifying the pawn, rook and king booleans after a move
-                        map (\p@(pos, s, pt) -> 
+                    else if isPromotionMove
+                        then
+                            map (\p@(pos, s, pt) -> 
+                                    if pos == startPos 
+                                    then (endPos, s, pieceType)  -- Replace the pawn with the new piece
+                                    else p
+                            ) (filter (\(pos, _, _) -> pos /= endPos) positions) 
+                    
+                    else if isEnPassantCapture
+                        then
+                            map (\p@(pos, s, pt) -> 
+                                    if pos == startPos 
+                                    then (endPos, s, pt)  -- Move the pawn
+                                    else p
+                    ) (filter (\(pos, _, _) -> pos /= capturedPawnPos) positions) -- Remove the captured pawn
+                        
+                    else
+                        map (\p@(pos, s, pt) -> -- ChatGPT helped write this part about modifying the pawn, rook and king booleans after a move
                                 if pos == startPos 
                                 then case pt of
                                         Pawn _ -> (endPos, s, Pawn (abs (snd endPos - snd startPos) == 2))
@@ -495,7 +513,6 @@ makeMove (fiftyMoveCounter, side, positions, boardHistory) (piece@(startPos, pie
                         ) (filter (\(pos, _, _) -> pos /= endPos) positions)
                 updatedHistory = ((side, positions) : boardHistory)
             in (newFiftyMoveCounter, newSide, newPositions, updatedHistory)
-        else error "Such move is not allowed"
     else error ("It is not " ++ show (if side == White then Black else White) ++ "'s turn")
 
 --Quick move calls makeMove but uses two positions instead of the longer alternative
@@ -511,22 +528,22 @@ quickMove game startPos endPos =
                 move = if isTwoSquareMove
                        then ((pos, side, Pawn True), endPos)  -- Set Pawn True for two-square move
                        else ((pos, side, Pawn False), endPos) -- Keep Pawn False for one-square move
-            in makeMove game move
+            in if move `elem` allLegalMoves game currentTurn then makeMove game move else error ("Such move does not exist")
         
         -- Handle the rook case
         Just (pos, side, Rook _) -> 
             let move = ((pos, side, Rook True), endPos)  -- Set Rook True after it moves
-            in makeMove game move
+            in if move `elem` allLegalMoves game currentTurn then makeMove game move else error ("Such move does not exist")
 
         -- Handle the king case
         Just (pos, side, King _) -> 
             let move = ((pos, side, King True), endPos)  -- Set King True after it moves
-            in makeMove game move
+            in if move `elem` allLegalMoves game currentTurn then makeMove game move else error ("Such move does not exist")
 
         -- Default case for other pieces
         Just piece -> 
             let move = (piece, endPos)
-            in makeMove game move
+            in if move `elem` allLegalMoves game currentTurn then makeMove game move else error ("Such move does not exist")
 
         Nothing -> error "No piece at starting position"
 
@@ -537,7 +554,7 @@ promotePiece game startPos endPos promotionPiece =
         case getPiece game startPos of
             Just (pos, side, Pawn _) ->
                 let move = ((pos, side, promotionPiece), endPos)
-                in makeMove game move
+                in if move `elem` allLegalMoves game currentTurn then makeMove game move else error ("Such move does not exist")
 
             Just piece -> 
                 error "Not a pawn at starting position"
@@ -548,7 +565,8 @@ promotePiece game startPos endPos promotionPiece =
 --Check if a side is currently in the state of checkmate, aka that side is in check and has no more legal moves to be made
 checkMate :: Game -> Side -> Bool
 checkMate game side =
-    length (allLegalMoves game side) == 0 && inCheck game side
+    let (_, currentTurn, _, _) = game in
+        if currentTurn == side then length (allLegalMoves game side) == 0 && inCheck game side else False
 
 --Check if the current turn of the game as no moves but is also not in check
 staleMate :: Game -> Bool

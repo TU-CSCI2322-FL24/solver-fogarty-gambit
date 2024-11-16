@@ -38,5 +38,9 @@ promoteIntoCheckGame = (0, Black, [(('B',4), White, Pawn False), (('E',1), White
     (('H',2), Black, Pawn False), (('B',8), Black, King True)],[])
 
 enPassantGame :: Game
-enPassantGame = (0, Black, [(('D',4), White, Pawn True), (('E',1), White, King True),
+enPassantGame = (0, Black, [(('D',4), White, Pawn True), (('F',4), White, Pawn True), (('E',1), White, King True),
+    (('E',4), Black, Pawn False), (('B',8), Black, King True)],[])
+
+castleGame :: Game
+castleGame = (0, White, [(('H',1), White, Rook False), (('A',1), White, Rook False), (('E',1), White, King False),
     (('E',4), Black, Pawn False), (('B',8), Black, King True)],[])
