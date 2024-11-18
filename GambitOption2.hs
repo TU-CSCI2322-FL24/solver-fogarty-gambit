@@ -1,3 +1,4 @@
+module GambitOption2 where
 import Prelude
 import Data.Maybe
 import Data.List (find)
@@ -21,11 +22,35 @@ type Move = (Piece, Position) --Maybe move should take a position instead of a p
 --      50 Move Counter              Board History for Threefold Repetition
 type Game = (Int, CurrentTurn, [Piece], [(CurrentTurn, [Piece])])
 
+
+whoWillWin :: Game -> Winner
+whoWillWin game = undefined
+
+strToPos :: String -> Maybe Position
+strToPos str 
+    | length str /= 2 || not (validPos (head str, read (tail str))) = Nothing
+    | otherwise       = Just (head str, read (tail str))
+
+--only need this for promotion, not gonna deal with pawns
+strToPiece :: String -> Maybe PieceType
+strToPiece "Rook" = Just (Rook True)
+strToPiece "Queen" = Just Queen
+strToPiece "Bishop" = Just Bishop
+strToPiece "Knight" = Just Knight
+strToPiece _ = Nothing
+
+        
+validPos :: Position -> Bool
+validPos (c, n) = c `elem` ['A'..'H'] && n `elem` [1..8]
+
 getSnd :: (a, b, c) -> b
 getSnd (a, b, c) = b
 
 getThd :: (a, b, c, d) -> c
 getThd (a, b, c, d) = c
+
+getFrth :: (a,b,c,d) -> d
+getFrth (a,b,c,d) = d
 
 
 reverseList :: [a] -> [a]
