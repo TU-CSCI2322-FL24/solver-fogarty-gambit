@@ -399,8 +399,8 @@ legalPieceMoves game (pos, side, pieceType) =
             
 
 --Get every possible move for a side, including castling
-allLegalMoves :: Game -> Side -> [Move]
-allLegalMoves game side =
+allLegalMoves :: Game -> [Move]
+allLegalMoves game@(_ , side, _, _) =
     let sidePieces = filter (\(_, s, _) -> s == side) (getThd game)
         legalMoves = concatMap (legalPieceMoves game) sidePieces
         --legalMoves = filter (\move -> not (causeCheck game move side)) allMoves
@@ -529,22 +529,22 @@ quickMove game startPos endPos =
                 move = if isTwoSquareMove
                        then ((pos, side, Pawn True), endPos)  -- Set Pawn True for two-square move
                        else ((pos, side, Pawn False), endPos) -- Keep Pawn False for one-square move
-            in if move `elem` allLegalMoves game currentTurn then makeMove game move else error ("Such move does not exist")
+            in if move `elem` allLegalMoves game then makeMove game move else error ("Such move does not exist")
         
         -- Handle the rook case
         Just (pos, side, Rook _) -> 
             let move = ((pos, side, Rook True), endPos)  -- Set Rook True after it moves
-            in if move `elem` allLegalMoves game currentTurn then makeMove game move else error ("Such move does not exist")
+            in if move `elem` allLegalMoves game then makeMove game move else error ("Such move does not exist")
 
         -- Handle the king case
         Just (pos, side, King _) -> 
             let move = ((pos, side, King True), endPos)  -- Set King True after it moves
-            in if move `elem` allLegalMoves game currentTurn then makeMove game move else error ("Such move does not exist")
+            in if move `elem` allLegalMoves game then makeMove game move else error ("Such move does not exist")
 
         -- Default case for other pieces
         Just piece -> 
             let move = (piece, endPos)
-            in if move `elem` allLegalMoves game currentTurn then makeMove game move else error ("Such move does not exist")
+            in if move `elem` allLegalMoves game then makeMove game move else error ("Such move does not exist")
 
         Nothing -> error "No piece at starting position"
 
@@ -555,7 +555,7 @@ promotePiece game startPos endPos promotionPiece =
         case getPiece game startPos of
             Just (pos, side, Pawn _) ->
                 let move = ((pos, side, promotionPiece), endPos)
-                in if move `elem` allLegalMoves game currentTurn then makeMove game move else error ("Such move does not exist")
+                in if move `elem` allLegalMoves game then makeMove game move else error ("Such move does not exist")
 
             Just piece -> 
                 error "Not a pawn at starting position"
@@ -567,13 +567,12 @@ promotePiece game startPos endPos promotionPiece =
 checkMate :: Game -> Side -> Bool
 checkMate game side =
     let (_, currentTurn, _, _) = game in
-        if currentTurn == side then length (allLegalMoves game side) == 0 && inCheck game side else False
+        if currentTurn == side then length (allLegalMoves game) == 0 && inCheck game side else False
 
 --Check if the current turn of the game as no moves but is also not in check
 staleMate :: Game -> Bool
-staleMate game =
-    let (_, currentTurn, _, _) = game in
-        length (allLegalMoves game currentTurn) == 0 && not (inCheck game currentTurn)
+staleMate game@(_, side, _, _) =
+    length (allLegalMoves game) == 0 && not (inCheck game side)
 
 --Check if the game is in a default tie by material state
 drawByMaterial :: Game -> Bool
