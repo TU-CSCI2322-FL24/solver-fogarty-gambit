@@ -28,6 +28,61 @@ getSnd (a, b, c) = b
 getThd :: (a, b, c, d) -> c
 getThd (a, b, c, d) = c
 
+parsePieceType :: String -> Maybe PieceType
+parsePieceType "PT" = Just (Pawn True)
+parsePieceType "PF" = Just (Pawn False)
+parsePieceType "RT" = Just (Rook True)
+parsePieceType "RF" = Just (Rook False)
+parsePieceType "KT" = Just (King True)
+parsePieceType "KF" = Just (King False)
+parsePieceType "N" = Just Knight
+parsePieceType "B" = Just Bishop
+parsePieceType "Q" = Just Queen
+parsePieceType _ = Nothing
+
+parseSide :: String -> Maybe Side
+parseSide "White" = Just White
+parseSide "W" = Just White
+parseSide "Black" = Just Black
+parseSide "B" = Just Black
+parseSide _ = Nothing
+
+stringToChar :: String -> Maybe Char
+stringToChar [c] = Just c
+stringToChar _ = Nothing
+
+
+readGame :: String -> Game
+readGame str =
+    let lineList = lines str
+        currentTurn = case parseSide (head lineList) of
+            Just turn -> turn
+            Nothing -> error "Invalid current turn in the text file"
+        pieceLines = tail lineList
+
+        parsePieceLine :: String -> Piece
+        parsePieceLine line =
+            let [col, rowStr, sideStr, pieceTypeStr] = words line
+                position = case stringToChar col of
+                    Just c -> (c, read rowStr)
+                    Nothing -> error "Invalid column value"
+                side = case parseSide sideStr of
+                    Just s -> s
+                    Nothing -> error "Invalid side value"
+                pieceType = case parsePieceType pieceTypeStr of
+                    Just pt -> pt
+                    Nothing -> error "Invalid piece type"
+            in (position, side, pieceType)
+
+        pieces = map parsePieceLine pieceLines
+    in (0, currentTurn, pieces, [])
+
+--Calls displayBoard but allows for text files to be displayed
+showGameFile :: FilePath -> Side -> IO ()
+showGameFile filePath side = do
+    content <- readFile filePath
+    displayBoard (readGame content) side
+
 whoWillWin :: Game -> Winner
 whoWillWin game@(_, currentTurn, _, _) =
     case getWinner game of
