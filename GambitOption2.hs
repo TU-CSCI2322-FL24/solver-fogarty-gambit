@@ -28,6 +28,31 @@ getSnd (a, b, c) = b
 getThd :: (a, b, c, d) -> c
 getThd (a, b, c, d) = c
 
+whoWillWin :: Game -> Winner
+whoWillWin game@(_, currentTurn, _, _) =
+    case getWinner game of
+        Just outcome -> outcome
+        Nothing ->
+            let moves = allLegalMoves game currentTurn
+                winners = map (\x -> whoWillWin (makeMove game x)) moves
+                otherSide = if currentTurn == White then Black else White 
+            in if (Win currentTurn) `elem` winners then Win currentTurn else
+                if Tie `elem` winners then Tie else (Win otherSide)
+
+bestMove :: Game -> Maybe Move
+bestMove game@(_, currentTurn, _, _) = 
+    case getWinner game of
+        Just outcome -> Nothing
+        Nothing ->
+            let moves = allLegalMoves game currentTurn
+                winners = map (\x -> (whoWillWin (makeMove game x), x) ) moves
+                otherSide = if currentTurn == White then Black else White 
+                bestMoveReal = if (Win currentTurn) `elem` map (fst) winners
+                    then snd (head (filter (\(win, mov) -> win == Win currentTurn) winners)) else
+                    if Tie `elem` map (fst) winners
+                    then snd (head (filter (\(win, mov) -> win == Tie) winners))
+                    else snd (head winners) 
+            in Just bestMoveReal
 
 reverseList :: [a] -> [a]
 reverseList [] = []
