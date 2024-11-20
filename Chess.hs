@@ -1,7 +1,9 @@
 module Chess where
 import GambitOption2
-import GHC.IO.Handle (hFlush)
-import Data.Conduit.Combinators (stdout)
+import System.IO
+import System.Environment
+import Data.Maybe
+
 
 maxDepth = 4
 
@@ -10,11 +12,11 @@ readMove currentGame input = let
     args = words input
     pos1 = strToPos (head args)
     pos2 = strToPos (head (tail args))
-    promoPiece = if length args == 3 && not isNothing (strToPiece (last args)) then Just strToPiece (last args) else Nothing 
+    promoPiece = if length args == 3 && isJust (strToPiece (last args)) then Just (fromJust (strToPiece (last args))) else Nothing 
 
     in if length args > 3 || length args < 2 || isNothing pos1 || isNothing pos2 then Nothing else
-        if length args == 3 && not isNothing promoPiece then Just promotePiece currentGame (fromJust pos1) (fromJust pos2) (fromJust promoPiece)
-        else quickMove currentGame (fromJust pos1) (fromJust pos2)
+        if length args == 3 && isJust promoPiece then Just (promotePiece currentGame (fromJust pos1) (fromJust pos2) (fromJust promoPiece))
+        else Just (quickMove currentGame (fromJust pos1) (fromJust pos2))
 
 startGame = do
     whiteMain maxDepth initialGame
@@ -26,25 +28,38 @@ whiteMain num currentGame = do
     putStrLn "What is your move? (Format: pos, pos OR pos, pos, pieceType if promoting)"
     hFlush stdout
     move <- getLine
-    newGame <- readMove currentGame move 
-    case printWinner (getWinner newGame) of 
-        Nothing -> aiMove <- bestMove ((1 + fst currentGame), Black, getThd newGame, getFrth newGame)
-        _ -> putStrLn fromJust _
-
+    let newGame = readMove currentGame move in
+        case newGame of 
+            Nothing -> do 
+                putStrLn "Invalid move. Try again."
+                whiteMain num currentGame
+            Just game ->
+        --check if you won on this turn. If not, then the bot plays
+                case printWinner (getWinner game) of 
+                    --Nobody has won yet, the bot will play
+                    Nothing -> let 
+                        aiMove = bestMove ((1 + fst currentGame), Black, getThd game, getFrth game)
+                        --blackGame is the game state AFTER black moves
+                        blackGame = makeMove ((1 + fst currentGame), Black, getThd game, getFrth game) aiMove
+                        maybeWinner = getWinner blackGame
+                        in if isNothing maybeWinner 
+                            then putStrLn (printWinner maybeWinner)
+                            else whiteMain ((1 + fst blackGame), White, getThd blackGame, getFrth blackGame)
+                        --have the ai make a move, check if anyone has won, if not, then call whiteMain
+                    --Somebody won, or it's a tie
+                    Just _ -> putStrLn _
     
 
 
     --main (num - 1)
     
 
+
 printWinner :: Maybe Winner -> Maybe String
 printWinner Nothing = Nothing
-printWinner Just Black = "Black wins!"
-printWinner Just White = "White wins!"
-printWinner Just Tie = "It's a tie."
-
-blackMain :: Integer -> Game -> IO ()
-blackMain num currentGame = do
+printWinner (Just (Win Black)) = Just "Black wins!"
+printWinner (Just (Win White)) = Just "White wins!"
+printWinner (Just Tie) = Just "It's a tie."
     
 
 {-
