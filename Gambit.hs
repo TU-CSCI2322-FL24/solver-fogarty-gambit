@@ -54,13 +54,6 @@ bestMove game@(_, currentTurn, _, _) =
                     else snd (head winners) 
             in Just bestMoveReal
 
-reverseList :: [a] -> [a]
-reverseList [] = []
-reverseList lst = let
-    aux [] out = out
-    aux (x:xs) out = aux xs (x:out)
-    in aux lst []
-
 pieceToChar :: Piece -> Char
 pieceToChar (_, Black, King _) = '\x2654'
 pieceToChar (_, White, King _) = '\x265A'
@@ -125,7 +118,7 @@ displayBoard game pov = let
             then aux (out ++ [square]) (rows) (incrementPos currentPos) 
             else aux (out ++ [pieceToChar (currentPos, fst (fromJust maybePiece), snd (fromJust maybePiece))]) (rows) (incrementPos currentPos)
     --                                                        Labels for the ranks                                                   The board is printed backwards for black              Labels for the ranks, backwards
-    displayStr = if pov == White then ("\n" ++ missingWhiteStr ++ "\n  ________ \n8|" ++ (aux "" emptyBoard ('A', 8)) ++ "\b ‾‾‾‾‾‾‾‾ \n  ABCDEFGH\n\n" ++ missingBlackStr ++ "\n") else ("\n" ++ missingBlackStr ++ "\n ________ " ++ (reverseList (((aux "" emptyBoard ('A', 8)) ++ ""))) ++ "|8\n ‾‾‾‾‾‾‾‾ \n HGFEDCBA\n\n" ++ missingWhiteStr ++ "\n")
+    displayStr = if pov == White then ("\n" ++ missingWhiteStr ++ "\n  ________ \n8|" ++ (aux "" emptyBoard ('A', 8)) ++ "\b ‾‾‾‾‾‾‾‾ \n  ABCDEFGH\n\n" ++ missingBlackStr ++ "\n") else ("\n" ++ missingBlackStr ++ "\n ________ " ++ (reverse (((aux "" emptyBoard ('A', 8)) ++ ""))) ++ "|8\n ‾‾‾‾‾‾‾‾ \n HGFEDCBA\n\n" ++ missingWhiteStr ++ "\n")
     in putStrLn displayStr
 
 --use putStrLn in the shell to print this string
