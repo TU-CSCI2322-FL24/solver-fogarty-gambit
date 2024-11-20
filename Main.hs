@@ -4,6 +4,8 @@ import System.IO
 import System.Environment
 import Data.Maybe
 
+main :: IO ()
+main = undefined
 
 maxDepth = 4
 
