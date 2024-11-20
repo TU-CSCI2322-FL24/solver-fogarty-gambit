@@ -1,5 +1,5 @@
 module TestCases where
-import GambitOption2 
+import Gambit 
 
 mateInOneRookGame :: Game
 mateInOneRookGame = (0, White, [(('A',3), White, Pawn False), (('F',2), White, Pawn False), (('G',3), White, Pawn False), (('H',2), White, Pawn False), (('G',7), White, Pawn False), (('C',3), White, Bishop), (('G',1), White, King True), (('E',7), White, Rook True), 

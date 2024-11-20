@@ -1,4 +1,4 @@
-module GambitOption2 where
+module Gambit where
 import Prelude
 import Data.Maybe
 import Data.List (find)
@@ -33,7 +33,7 @@ whoWillWin game@(_, currentTurn, _, _) =
     case getWinner game of
         Just outcome -> outcome
         Nothing ->
-            let moves = allLegalMoves game currentTurn
+            let moves = allLegalMoves game
                 winners = map (\x -> whoWillWin (makeMove game x)) moves
                 otherSide = if currentTurn == White then Black else White 
             in if (Win currentTurn) `elem` winners then Win currentTurn else
@@ -44,7 +44,7 @@ bestMove game@(_, currentTurn, _, _) =
     case getWinner game of
         Just outcome -> Nothing
         Nothing ->
-            let moves = allLegalMoves game currentTurn
+            let moves = allLegalMoves game
                 winners = map (\x -> (whoWillWin (makeMove game x), x) ) moves
                 otherSide = if currentTurn == White then Black else White 
                 bestMoveReal = if (Win currentTurn) `elem` map (fst) winners
