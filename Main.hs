@@ -4,9 +4,32 @@ import System.IO
 import System.Environment
 import Data.Maybe
 
+--read file name from stdin or args, load the game, and print the best move
 main :: IO ()
 main = undefined
 
+--note that this will overwrite the contents of the file. If the file doesn't exist, it creates one with that name
+writeGame :: Game -> FilePath -> IO ()
+writeGame game file = do
+    writeFile file (showGame game)
+
+loadGame :: FilePath -> IO Game
+loadGame file = do
+    gameStr <- readFile file
+    return (readGame gameStr)
+
+putBestMove :: Game -> IO ()
+putBestMove game = do --print the outcome of whoWillWin here too 
+    case bestMove game of --                                                           this int is the depth, change as needed
+        Just move -> putStrLn (showMove move ++ ". The expected outcome is " ++ case whoWillWin game 3 of
+            Just (Win White) -> "a win for white."
+            Just (Win Black) -> "a win for black."
+            Just Tie -> "a tie."
+            Nothing -> "not certain.")
+        Nothing -> putStrLn "There is no best move here."
+
+
+{-
 maxDepth = 4
 
 readMove :: Game -> String -> Maybe Game
@@ -20,7 +43,7 @@ readMove currentGame input = let
         if length args == 3 && isJust promoPiece then Just (promotePiece currentGame (fromJust pos1) (fromJust pos2) (fromJust promoPiece))
         else Just (quickMove currentGame (fromJust pos1) (fromJust pos2))
 
-{-
+
 startGame = do
     whiteMain maxDepth initialGame
 
