@@ -83,29 +83,31 @@ showGameFile filePath side = do
     content <- readFile filePath
     displayBoard (readGame content) side
 
-whoWillWin :: Game -> Winner
-whoWillWin game@(_, currentTurn, _, _) =
+whoWillWin :: Game -> Int -> Maybe Winner
+whoWillWin _ 0 = Nothing
+whoWillWin game@(_, currentTurn, _, _) limit =
     case getWinner game of
-        Just outcome -> outcome
+        Just outcome -> Just outcome
         Nothing ->
             let moves = allLegalMoves game
-                winners = map (\x -> whoWillWin (makeMove game x)) moves
+                winners = map (\x -> whoWillWin (makeMove game x) (limit - 1)) moves
                 otherSide = if currentTurn == White then Black else White 
-            in if (Win currentTurn) `elem` winners then Win currentTurn else
-                if Tie `elem` winners then Tie else (Win otherSide)
+            in if Just (Win currentTurn) `elem` winners then Just (Win currentTurn) else
+                if Just Tie `elem` winners then Just Tie else 
+                    if Just (Win otherSide) `elem` winners then Just (Win otherSide) else Nothing --Just (Win otherSide)
 
-bestMove :: Game -> Maybe Move
-bestMove game@(_, currentTurn, _, _) = 
+bestMove :: Game -> Int -> Maybe Move
+bestMove game@(_, currentTurn, _, _) limit = 
     case getWinner game of
         Just outcome -> Nothing
         Nothing ->
             let moves = allLegalMoves game
-                winners = map (\x -> (whoWillWin (makeMove game x), x) ) moves
+                winners = map (\x -> (whoWillWin (makeMove game x) (limit-1), x) ) moves
                 otherSide = if currentTurn == White then Black else White 
-                bestMoveReal = if (Win currentTurn) `elem` map (fst) winners
-                    then snd (head (filter (\(win, mov) -> win == Win currentTurn) winners)) else
-                    if Tie `elem` map (fst) winners
-                    then snd (head (filter (\(win, mov) -> win == Tie) winners))
+                bestMoveReal = if Just (Win currentTurn) `elem` map (fst) winners
+                    then snd (head (filter (\(win, mov) -> win == Just (Win currentTurn)) winners)) else
+                    if Just Tie `elem` map (fst) winners
+                    then snd (head (filter (\(win, mov) -> win == Just Tie) winners))
                     else snd (head winners) 
             in Just bestMoveReal
 
