@@ -1,4 +1,8 @@
+<<<<<<< HEAD:Gambit.hs
 module Gambit where
+=======
+module GambitOption2 where
+>>>>>>> a52d0910f4501b098abbc5c8c06c6254b3f93b4c:GambitOption2.hs
 import Prelude
 import Data.Maybe
 import Data.List (find)
@@ -22,6 +26,13 @@ type Move = (Piece, Position) --Maybe move should take a position instead of a p
 --      50 Move Counter              Board History for Threefold Repetition
 type Game = (Int, CurrentTurn, [Piece], [(CurrentTurn, [Piece])])
 
+<<<<<<< HEAD:Gambit.hs
+=======
+
+whoWillWin :: Game -> Winner
+whoWillWin game = undefined
+
+>>>>>>> a52d0910f4501b098abbc5c8c06c6254b3f93b4c:GambitOption2.hs
 strToPos :: String -> Maybe Position
 strToPos str 
     | length str /= 2 || not (validPos (head str, read (tail str))) = Nothing
@@ -45,6 +56,7 @@ getSnd (a, b, c) = b
 getThd :: (a, b, c, d) -> c
 getThd (a, b, c, d) = c
 
+<<<<<<< HEAD:Gambit.hs
 parsePieceType :: String -> Maybe PieceType
 parsePieceType "PT" = Just (Pawn True)
 parsePieceType "PF" = Just (Pawn False)
@@ -56,6 +68,11 @@ parsePieceType "N" = Just Knight
 parsePieceType "B" = Just Bishop
 parsePieceType "Q" = Just Queen
 parsePieceType _ = Nothing
+=======
+getFrth :: (a,b,c,d) -> d
+getFrth (a,b,c,d) = d
+
+>>>>>>> a52d0910f4501b098abbc5c8c06c6254b3f93b4c:GambitOption2.hs
 
 showPieceType :: PieceType -> String
 showPieceType (Pawn False) = "PF"
