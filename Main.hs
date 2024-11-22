@@ -6,7 +6,14 @@ import Data.Maybe
 
 --read file name from stdin or args, load the game, and print the best move
 main :: IO ()
-main = undefined
+main = do
+    putStrLn "Welcome to chess. Please enter the name of your game file: "
+    hFlush stdout
+    
+    gameFile <- getLine
+    game <- loadGame gameFile
+    putBestMove game
+
 
 --note that this will overwrite the contents of the file. If the file doesn't exist, it creates one with that name
 writeGame :: Game -> FilePath -> IO ()
