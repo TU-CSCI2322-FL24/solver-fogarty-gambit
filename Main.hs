@@ -4,6 +4,9 @@ import System.IO
 import System.Environment
 import Data.Maybe
 
+depth :: Int
+depth = 3
+
 --read file name from stdin or args, load the game, and print the best move
 main :: IO ()
 main = do
@@ -27,8 +30,8 @@ loadGame file = do
 
 putBestMove :: Game -> IO ()
 putBestMove game = do --print the outcome of whoWillWin here too 
-    case bestMove game of --                                                           this int is the depth, change as needed
-        Just move -> putStrLn (showMove move ++ ". The expected outcome is " ++ case whoWillWin game 3 of
+    case bestMove game depth of --                                                           this int is the depth, change as needed
+        Just move -> putStrLn (showMove move ++ ". The expected outcome is " ++ case whoWillWin game depth of
             Just (Win White) -> "a win for white."
             Just (Win Black) -> "a win for black."
             Just Tie -> "a tie."
