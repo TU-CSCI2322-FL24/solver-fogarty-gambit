@@ -5,7 +5,7 @@ import System.Environment
 import Data.Maybe
 
 depth :: Int
-depth = 3
+depth = 4
 
 --read file name from stdin or args, load the game, and print the best move
 main :: IO ()
@@ -16,7 +16,6 @@ main = do
     gameFile <- getLine
     game <- loadGame gameFile
     putBestMove game
-
 
 --note that this will overwrite the contents of the file. If the file doesn't exist, it creates one with that name
 writeGame :: Game -> FilePath -> IO ()

@@ -136,7 +136,7 @@ showGame game@(moveCount, currentTurn, pieces, threefoldStates) = let
 showGameFile :: FilePath -> Side -> IO ()
 showGameFile filePath side = do
     content <- readFile filePath
-    displayBoard (readGame content) side
+    putStrLn (displayBoard (readGame content) side)
 
 whoWillWin :: Game -> Int -> Maybe Winner
 whoWillWin _ 0 = Nothing
@@ -179,7 +179,6 @@ pieceToChar (_, Black, Rook _) = '\x2656'
 pieceToChar (_, White, Rook _) = '\x265C'
 pieceToChar (_, Black, Pawn _) = '\x2659'
 pieceToChar (_, White, Pawn _) = '\x265F'
-pieceToChar _ = error "That piece doesn't exist"
 
 --IncrementPos increments a position one square to the right, starting at a8 and ending at h1.
 -- Incrementing h1 returns a8. Alternatively, it could return a Maybe Position or throw an error.
@@ -200,7 +199,7 @@ emptyBoard = whiteFirstRow ++ blackFirstRow ++ whiteFirstRow ++ blackFirstRow ++
 
 --testGame = (White, [(('A', 5), White, Pawn True)])
 
-displayBoard :: Game -> Side -> IO ()
+displayBoard :: Game -> Side -> String --IO ()
 displayBoard game pov = let
     --Association list of every piece on the board
     positionsAndPieces = [(pos, (side, pieceType)) | (pos, side, pieceType) <- getThd game]
@@ -219,19 +218,19 @@ displayBoard game pov = let
         maybePiece :: Maybe (Side, PieceType)
         maybePiece = lookup currentPos positionsAndPieces
         --Checks if we need to print a piece char or a square char
-        in if isNothing maybePiece
+        in case maybePiece of
             --                                            Prints the row numbers on the side of the board
-            then aux (out ++ [square] ++ "|" ++  "\n" ++ (if (snd (incrementPos currentPos) == 8) then " " else show (snd (incrementPos currentPos))) ++ (if currentPos == ('H', 1) then " " else "|")) (board) (incrementPos currentPos) 
-            else aux (out ++ [pieceToChar (currentPos, fst (fromJust maybePiece), snd (fromJust maybePiece))] ++ "|" ++  "\n" ++ (if (snd (incrementPos currentPos) == 8) then " " else show (snd (incrementPos currentPos))) ++ (if currentPos == ('H', 1) then " " else "|")) (board) (incrementPos currentPos)
+            Nothing -> aux (out ++ [square] ++ "|" ++  "\n" ++ (if (snd (incrementPos currentPos) == 8) then " " else show (snd (incrementPos currentPos))) ++ (if currentPos == ('H', 1) then " " else "|")) (board) (incrementPos currentPos) 
+            (Just piece) -> aux (out ++ [pieceToChar (currentPos, fst piece, snd piece)] ++ "|" ++  "\n" ++ (if (snd (incrementPos currentPos) == 8) then " " else show (snd (incrementPos currentPos))) ++ (if currentPos == ('H', 1) then " " else "|")) (board) (incrementPos currentPos)
 
     aux out (square:rows) currentPos = let
         maybePiece = lookup currentPos positionsAndPieces
-        in if isNothing maybePiece 
-            then aux (out ++ [square]) (rows) (incrementPos currentPos) 
-            else aux (out ++ [pieceToChar (currentPos, fst (fromJust maybePiece), snd (fromJust maybePiece))]) (rows) (incrementPos currentPos)
+        in case maybePiece of 
+            Nothing -> aux (out ++ [square]) (rows) (incrementPos currentPos) 
+            (Just piece) -> aux (out ++ [pieceToChar (currentPos, fst piece, snd piece)]) (rows) (incrementPos currentPos)
     --                                                        Labels for the ranks                                                   The board is printed backwards for black              Labels for the ranks, backwards
     displayStr = if pov == White then ("\n" ++ missingWhiteStr ++ "\n  ________ \n8|" ++ (aux "" emptyBoard ('A', 8)) ++ "\b ‾‾‾‾‾‾‾‾ \n  ABCDEFGH\n\n" ++ missingBlackStr ++ "\n") else ("\n" ++ missingBlackStr ++ "\n ________ " ++ (reverse (((aux "" emptyBoard ('A', 8)) ++ ""))) ++ "|8\n ‾‾‾‾‾‾‾‾ \n HGFEDCBA\n\n" ++ missingWhiteStr ++ "\n")
-    in putStrLn displayStr
+    in displayStr --putStrLn displayStr
 
 --use putStrLn in the shell to print this string
 
