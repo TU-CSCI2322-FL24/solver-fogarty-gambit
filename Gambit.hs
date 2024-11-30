@@ -22,11 +22,33 @@ type Move = (Piece, Position) --Maybe move should take a position instead of a p
 --      50 Move Counter              Board History for Threefold Repetition
 type Game = (Int, CurrentTurn, [Piece], [(CurrentTurn, [Piece])])
 
+
+
+strToPos :: String -> Maybe Position
+strToPos str 
+    | length str /= 2 || not (validPos (head str, read (tail str))) = Nothing
+    | otherwise       = Just (head str, read (tail str))
+
+--only need this for promotion, not gonna deal with pawns
+strToPiece :: String -> Maybe PieceType
+strToPiece "Rook" = Just (Rook True)
+strToPiece "Queen" = Just Queen
+strToPiece "Bishop" = Just Bishop
+strToPiece "Knight" = Just Knight
+strToPiece _ = Nothing
+
+showMove :: Move -> String
+showMove (piece, pos) = ((pieceToChar piece):(show (fst pos))) ++ (show (snd pos))
+
+validPos :: Position -> Bool
+validPos (c, n) = c `elem` ['A'..'H'] && n `elem` [1..8]
+
 getSnd :: (a, b, c) -> b
 getSnd (a, b, c) = b
 
 getThd :: (a, b, c, d) -> c
 getThd (a, b, c, d) = c
+
 
 parsePieceType :: String -> Maybe PieceType
 parsePieceType "PT" = Just (Pawn True)
@@ -40,12 +62,39 @@ parsePieceType "B" = Just Bishop
 parsePieceType "Q" = Just Queen
 parsePieceType _ = Nothing
 
+
+getFrth :: (a,b,c,d) -> d
+getFrth (a,b,c,d) = d
+
+
+showPieceType :: PieceType -> String
+showPieceType (Pawn False) = "PF"
+showPieceType (Pawn True) = "PT"
+showPieceType (Rook True) = "RT"
+showPieceType (Rook False) = "RF"
+showPieceType (King True) = "KT"
+showPieceType (King False) = "KF"
+showPieceType Knight = "N"
+showPieceType Bishop = "B"
+showPieceType Queen = "Q"
+
+
 parseSide :: String -> Maybe Side
 parseSide "White" = Just White
 parseSide "W" = Just White
 parseSide "Black" = Just Black
 parseSide "B" = Just Black
 parseSide _ = Nothing
+
+-- Converts a side into the full string representing it
+showSideFull :: Side -> String
+showSideFull White = "White"
+showSideFull Black = "Black"
+
+-- converts a side into a single char representing it
+showSideChar :: Side -> Char
+showSideChar White = 'W'
+showSideChar Black = 'B'
 
 stringToChar :: String -> Maybe Char
 stringToChar [c] = Just c
@@ -76,6 +125,12 @@ readGame str =
 
         pieces = map parsePieceLine pieceLines
     in (0, currentTurn, pieces, [])
+
+showGame :: Game -> String
+showGame game@(moveCount, currentTurn, pieces, threefoldStates) = let
+    strPieces :: String
+    strPieces = concat ['\n':(fst pos):' ':(intToDigit (snd pos)):' ':(showSideChar side):' ':(showPieceType pieceType) | (pos, side, pieceType) <- pieces]
+    in (showSideFull currentTurn) ++ strPieces
 
 --Calls displayBoard but allows for text files to be displayed
 showGameFile :: FilePath -> Side -> IO ()
