@@ -563,6 +563,9 @@ allLegalMoves game@(_ , side, _, _) =
         --in legalMoves ++ kingSideCastle ++ queenSideCastle
         in filter (\move -> not (causeCheck game move side)) legalMoves ++ kingSideCastle ++ queenSideCastle
 
+inBounds :: Position -> Bool
+inBounds (x, y) = !(ord(x) > 72 || ord(x) < 65 || y > 8 || y < 1)
+
 makeMove :: Game -> Move -> Game
 makeMove (fiftyMoveCounter, side, positions, boardHistory) (piece@(startPos, pieceSide, pieceType), endPos) =
     if side == pieceSide then
@@ -757,14 +760,14 @@ inCheck game currentSide = let (x, y) = getKingPosition game currentSide in
     	checkKnights (chr(ord (x)), y) game currentSide
 
 checkLine :: Position -> (Int, Int)-> Game -> Side -> Bool
-checkLine (x, y) (xAdd, yAdd) game side = if (ord(x) > 72 || ord(x) < 65 || y > 8 || y < 1) then False else
+checkLine pos@(x, y) (xAdd, yAdd) game side = if (inBounds pos) then False else
                                         let otherSide = if side == White then Black else White in case getPiece game (x, y) of 
                                             Just (_, v, Queen) -> v == otherSide
                                             Just (_, v, Rook _) -> v == otherSide
                                             Just (_, _, _) -> False
                                             otherwise -> checkLine (chr(ord(x) + xAdd), y + yAdd) (xAdd, yAdd) game side
 checkLineDiag :: Position -> (Int, Int)-> Game -> Side -> Bool
-checkLineDiag (x, y) (xAdd, yAdd) game side = if (ord(x) > 72 || ord(x) < 65 || y > 8 || y < 1) then False else
+checkLineDiag pos@(x, y) (xAdd, yAdd) game side = if (inBounds pos) then False else
                                         let otherSide = if side == White then Black else White in case getPiece game (x, y) of 
                                             Just (_, v, Queen) -> v == otherSide
                                             Just (_, v, Bishop) -> v == otherSide
@@ -773,8 +776,8 @@ checkLineDiag (x, y) (xAdd, yAdd) game side = if (ord(x) > 72 || ord(x) < 65 || 
 
 
 checkPawn :: Position -> Game -> Side -> Bool
-checkPawn (x, y) game side = if y > 8 then False else
-                         	if ord(x) > 72 || ord(x) < 65 then False else 
+checkPawn pos@(x, y) game side = if y > 8 then False else
+                         	if (inBounds pos) then False else 
                             let otherSide = if side == White then Black else White in case getPiece game (x, y) of 
                                             Just (_, v, Pawn _) -> v == otherSide
                                             otherwise -> False
@@ -789,7 +792,7 @@ checkKnights (x, y) game current = checkKnight ([(chr(ord(x) + z), y + u) | z <-
 
 checkKnight :: [Position] -> Game -> Side -> Bool
 checkKnight [] _ _ = False
-checkKnight ((x, y): xs) game side = if ord(x) > 72 || ord(x) < 65 || y > 8 || y < 1 then checkKnight xs game side else
+checkKnight (pos@(x, y): xs) game side = if (inBounds pos) then checkKnight xs game side else
                                       	case getPiece game (x, y) of 
                                             Just ((x, y), v, Knight) -> if v == side then True else checkKnight xs game side
                                             otherwise -> checkKnight xs game side
