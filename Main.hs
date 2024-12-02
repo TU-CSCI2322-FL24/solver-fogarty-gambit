@@ -1,23 +1,77 @@
 module Main where
+
 import Gambit
 import System.IO
 import System.Environment
 import Data.Maybe
+import System.Console.GetOpt
 
+-- Default depth for move calculation
 depth :: Int
 depth = 4
 
---read file name from stdin or args, load the game, and print the best move
+-- Define the options
+data Flag = Help | Winner | Depth Int | Move String | Verbose | Interactive | Unknown
+  deriving (Show, Eq)  -- Derive Eq so that elem can be used
+-- Options for command-line flags
+options :: [OptDescr Flag]
+options = [
+    Option ['h'] ["help"] (NoArg Help) "Display this help message",
+    Option ['w'] ["winner"] (NoArg Winner) "Show the best move using exhaustive search",
+    Option ['d'] ["depth"] (ReqArg (Depth . read) "<num>") "Specify a cutoff depth for move calculation",
+    Option ['m'] ["move"] (ReqArg Move "<move>") "Make a move and display the resulting board",
+    Option ['v'] ["verbose"] (NoArg Verbose) "Display move quality (win, lose, tie, or rating)",
+    Option ['i'] ["interactive"] (NoArg Interactive) "Play a new game interactively"
+  ]
+
+-- Show the help message
+usage :: String -> IO ()
+usage prog = do
+    putStrLn $ "Usage: " ++ prog ++ " [options]"
+    putStrLn "Options:"
+    mapM_ (putStrLn . usageInfo) options
+  where
+    usageInfo (Option short long arg desc) =
+        let shortFlags = if null short then "" else "-" ++ [head short]
+            longFlags = if null long then "" else "--" ++ unwords (map (++ ", ") (init long) ++ [last long])
+            flags = unwords $ filter (not . null) [shortFlags, longFlags]
+        in "  " ++ flags ++ " " ++ argDesc arg ++ " - " ++ desc
+    argDesc (NoArg _) = ""
+    argDesc (ReqArg _ argName) = argName
+    argDesc (OptArg _ argName) = "[" ++ argName ++ "]"
 main :: IO ()
 main = do
-    putStrLn "Welcome to chess. Please enter the name of your game file: "
-    hFlush stdout
-    
-    gameFile <- getLine
-    game <- loadGame gameFile
-    putBestMove game
+    args <- getArgs
+    case getOpt RequireOrder options args of
+        (opts, [], []) -> runOptions opts args  -- Pass args to runOptions
+        (_, _, errs) -> do                      -- If errors in arguments
+            putStrLn $ "Error: " ++ unlines errs
+            usage "program"                     -- Replace "program" with the actual program name
+  where
+    runOptions opts _ = do
+        if Help `elem` opts
+            then usage "program"                -- Replace "program" with the actual program name
+            else if null opts
+                then defaultBehavior            -- Fallback to default behavior
+                else handleFlags opts           -- Handle other flags
 
---note that this will overwrite the contents of the file. If the file doesn't exist, it creates one with that name
+    -- Default behavior: old main functionality
+    defaultBehavior :: IO ()
+    defaultBehavior = do
+        putStrLn "Welcome to chess. Please enter the name of your game file: "
+        hFlush stdout
+        gameFile <- getLine
+        game <- loadGame gameFile
+        putBestMove game
+
+    -- Placeholder for other flag handling
+    handleFlags :: [Flag] -> IO ()
+    handleFlags opts = do
+        -- Implement specific behaviors for flags like -w, -d, etc.
+        putStrLn $ "Flags provided: " ++ show opts
+
+
+-- Other functions to load the game and output the best move
 writeGame :: Game -> FilePath -> IO ()
 writeGame game file = do
     writeFile file (showGame game)
@@ -28,15 +82,14 @@ loadGame file = do
     return (readGame gameStr)
 
 putBestMove :: Game -> IO ()
-putBestMove game = do --print the outcome of whoWillWin here too 
-    case bestMove game depth of --                                                           this int is the depth, change as needed
+putBestMove game = do --print the outcome of whoWillWin here too
+    case bestMove game depth of -- This int is the depth, change as needed
         Just move -> putStrLn (showMove move ++ ". The expected outcome is " ++ case whoWillWin game depth of
             Just (Win White) -> "a win for white."
             Just (Win Black) -> "a win for black."
             Just Tie -> "a tie."
             Nothing -> "not certain.")
         Nothing -> putStrLn "There is no best move here."
-
 
 {-
 maxDepth = 4
