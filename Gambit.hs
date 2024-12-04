@@ -282,7 +282,7 @@ getMaterial (_, _, pieces, _) side =
         sideMaterial = materialValue [p | p@(_, s, _) <- pieces, s == side]
         otherMaterial = materialValue [p | p@(_, s, _) <- pieces, s /= side]
 
-    in max 0 (sideMaterial - otherMaterial)
+    in (sideMaterial - otherMaterial)
 
 getMaterialWinner :: Game -> Maybe Side
 getMaterialWinner game
@@ -302,6 +302,16 @@ getWinner game =
             else if checkMate game otherSide then Just (Win currentTurn)
                  else if staleMate game || drawByMaterial game || drawByThreefoldRepetition game || drawBy50MoveRule game then Just Tie
                     else Nothing
+
+rateGame :: Game -> Side -> Int
+rateGame game side = 
+    let otherSide = if side == White then Black else White
+    in
+        case getWinner game of
+            Just (Win side) -> 100
+            Just (Win otherSide) -> -100
+            Just Tie -> 0
+            Nothing -> getMaterial game side 
 
 --Get every possible move given a specfic piece
 legalPieceMoves :: Game -> Piece -> [Move]
