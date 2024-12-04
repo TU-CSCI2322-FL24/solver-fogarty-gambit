@@ -138,24 +138,18 @@ showGameFile filePath side = do
     content <- readFile filePath
     putStrLn (displayBoard (readGame content) side)
 
-whoWillWin :: Game  -> Winner
-whoWillWin game@(_, currentTurn, _, _)  =
+whoWillWin :: Game -> Int -> Maybe Winner
+whoWillWin _ 0 = Nothing
+whoWillWin game@(_, currentTurn, _, _) limit =
     case getWinner game of
-        Just outcome -> outcome
+        Just outcome -> Just outcome
         Nothing ->
             let moves = allLegalMoves game
-                winners = map (\x -> whoWillWin (makeMove game x)) moves
-            in bestFor currentTurn winners
-
-otherSide :: Side -> Side
-otherSide White = Black
-otherSide Black = White
-
-bestFor :: Side  -> [Winner] -> Winner
-bestFor pl lst
-    | (Win pl) `elem` lst = Win pl
-    | Tie `elem` lst = Tie
-    | otherwise = Win (otherSide pl)
+                winners = map (\x -> whoWillWin (makeMove game x) (limit - 1)) moves
+                otherSide = if currentTurn == White then Black else White 
+            in if Just (Win currentTurn) `elem` winners then Just (Win currentTurn) else
+                if Just Tie `elem` winners then Just Tie else 
+                    if Just (Win otherSide) `elem` winners then Just (Win otherSide) else Nothing --Just (Win otherSide)
 
 bestMove :: Game -> Int -> Maybe Move
 bestMove game@(_, currentTurn, _, _) limit = 
