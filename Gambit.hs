@@ -1,7 +1,7 @@
 module Gambit where
 import Prelude
 import Data.Maybe
-import Data.List (find)
+import Data.List
 import Data.Char
 data Side = White | Black deriving (Show, Eq)
 
@@ -12,12 +12,11 @@ data Winner = Win Side | Tie deriving (Show, Eq)
 
 type CurrentTurn = Side
 
---type Label = Char -- 'a' to 'h' to label each piece by the column letter they start on. This might not be neccessary
 type Position = (Char, Int) -- 'A' to 'H' for columns, 1 to 8 for rows
 
 type Piece = (Position, Side, PieceType)
 
-type Move = (Piece, Position) --Maybe move should take a position instead of a piece
+type Move = (Piece, Position)
 
 --      50 Move Counter              Board History for Threefold Repetition
 type Game = (Int, CurrentTurn, [Piece], [(CurrentTurn, [Piece])])
@@ -138,7 +137,7 @@ showGameFile filePath side = do
     content <- readFile filePath
     putStrLn (displayBoard (readGame content) side)
 
-whoWillWin :: Game  -> Winner
+whoWillWin :: Game -> Winner
 whoWillWin game@(_, currentTurn, _, _)  =
     case getWinner game of
         Just outcome -> outcome
@@ -147,30 +146,56 @@ whoWillWin game@(_, currentTurn, _, _)  =
                 winners = map (\x -> whoWillWin (makeMove game x)) moves
             in bestFor currentTurn winners
 
-otherSide :: Side -> Side
-otherSide White = Black
-otherSide Black = White
+otherside :: Side -> Side
+otherside White = Black
+otherside Black = White
 
 bestFor :: Side  -> [Winner] -> Winner
-bestFor pl lst
-    | (Win pl) `elem` lst = Win pl
+bestFor side lst
+    | (Win side) `elem` lst = Win side
     | Tie `elem` lst = Tie
-    | otherwise = Win (otherSide pl)
+    | otherwise = Win (otherside side)
 
-bestMove :: Game -> Int -> Maybe Move
-bestMove game@(_, currentTurn, _, _) limit = 
+bestMove :: Game -> Move
+bestMove game@(_, currentTurn, _, _) =
+    let moves = allLegalMoves game
+        evaluateMove move =
+            let resultingGame = makeMove game move
+            in (whoWillWin resultingGame, move)
+        rankedMoves = map evaluateMove moves
+        bestMoveForPlayer = find (\(winner, _) -> winner == Win currentTurn) rankedMoves
+        tieMove = find (\(winner, _) -> winner == Tie) rankedMoves
+    in case bestMoveForPlayer of
+        Just (_, move) -> move  -- Best move that ensures a win
+        Nothing -> case tieMove of
+            Just (_, move) -> move  -- A move that ensures a tie
+            Nothing -> snd (head rankedMoves)  -- Fallback to any move
+
+whoMightWin :: Game -> Int -> (Int, Maybe Move)
+whoMightWin game@(_, currentTurn, _, _) 0 =
+    let rating = rateGame game
+    in (rating, Nothing) -- At depth 0, no move is considered
+whoMightWin game@(_, currentTurn, _, _) depth =
+    let moves = allLegalMoves game
+        evaluateMove move =
+            let (rating, _) = whoMightWin (makeMove game move) (depth - 1)
+            in (rating, Just move)
+        rankedMoves = map evaluateMove moves
+    in if null moves
+        then (rateGame game, Nothing) -- No moves available
+        else if currentTurn == White
+            then maximumBy (\(r1, _) (r2, _) -> compare r1 r2) rankedMoves -- Maximize for White
+            else minimumBy (\(r1, _) (r2, _) -> compare r1 r2) rankedMoves -- Minimize for Black
+
+rateGame :: Game -> Int
+rateGame game@(_, currentTurn, _, _)= 
     case getWinner game of
-        Just outcome -> Nothing
-        Nothing ->
-            let moves = allLegalMoves game
-                winners = map (\x -> (whoWillWin (makeMove game x) (limit-1), x) ) moves
-                otherSide = if currentTurn == White then Black else White 
-                bestMoveReal = if Just (Win currentTurn) `elem` map (fst) winners
-                    then snd (head (filter (\(win, mov) -> win == Just (Win currentTurn)) winners)) else
-                    if Just Tie `elem` map (fst) winners
-                    then snd (head (filter (\(win, mov) -> win == Just Tie) winners))
-                    else snd (head winners) 
-            in Just bestMoveReal
+        Just (Win White) -> 100
+        Just (Win Black) -> -100
+        Just Tie -> 0
+        Nothing -> 
+            if currentTurn == White then getMaterial game White
+            else -(getMaterial game Black)
 
 pieceToChar :: Piece -> Char
 pieceToChar (_, Black, King _) = '\x2654'
@@ -300,24 +325,13 @@ getMaterialWinner game
     blackMaterial = getMaterial game Black
 
 getWinner :: Game -> Maybe Winner
-getWinner game =
-    let (_, currentTurn, _, _) = game
-        otherSide = if currentTurn == White then Black else White 
+getWinner game@(_, currentTurn, _, _) =
+    let otherSide = otherside currentTurn
         in
             if checkMate game currentTurn then Just (Win otherSide)
             else if checkMate game otherSide then Just (Win currentTurn)
                  else if staleMate game || drawByMaterial game || drawByThreefoldRepetition game || drawBy50MoveRule game then Just Tie
                     else Nothing
-
-rateGame :: Game -> Side -> Int
-rateGame game side = 
-    let otherSide = if side == White then Black else White
-    in
-        case getWinner game of
-            Just (Win side) -> 100
-            Just (Win otherSide) -> -100
-            Just Tie -> 0
-            Nothing -> getMaterial game side 
 
 --Get every possible move given a specfic piece
 legalPieceMoves :: Game -> Piece -> [Move]
