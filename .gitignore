@@ -1,6 +1,6 @@
 *.swp
-cluster
-cluster.exe
+gambit
+gambit.exe
 *.exe
 dist
 dist-*
