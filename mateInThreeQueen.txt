@@ -1,25 +1,12 @@
 4
 White
-A 2 W PF
-B 2 W PF
-C 2 W PF
-F 2 W PF
 F 6 W PF
 G 2 W PF
-H 2 W PF
-A 1 W RF
-H 1 W RF
 E 1 W KF
 F 3 W Q
-A 7 B PF
-B 7 B PF
-C 5 B PF
-C 4 B PF
 F 7 B PF
 H 7 B PF
 H 6 B PF
 G 8 B KT
-D 8 B Q
 C 8 B B
-A 8 B RF
 F 8 B RT
