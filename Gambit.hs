@@ -129,7 +129,7 @@ showGameFile filePath side = do
 whoWillWin :: Game -> Winner
 whoWillWin game@(_, currentTurn, _, _)  =
     case getWinner game of
-        Just outcome -> outcome
+        Just outcome -> Just outcome
         Nothing ->
             let moves = allLegalMoves game
                 winners = map (\x -> whoWillWin (makeMove game x)) moves
