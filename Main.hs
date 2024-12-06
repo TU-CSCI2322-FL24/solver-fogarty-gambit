@@ -1,23 +1,56 @@
 module Main where
+
 import Gambit
 import System.IO
 import System.Environment
 import Data.Maybe
+import System.Console.GetOpt
 
+-- Default depth for move calculation
 depth :: Int
 depth = 4
 
---read file name from stdin or args, load the game, and print the best move
+-- Define the options
+data Flag = Help | Winner | Depth Int | Move String | Verbose | Interactive | Unknown
+  deriving (Show, Eq)
+
+options :: [OptDescr Flag]
+options =
+  [ Option ['h'] ["help"] (NoArg Help) "Display this help message",
+    Option ['w'] ["winner"] (NoArg Winner) "Show the best move using exhaustive search",
+    Option ['d'] ["depth"] (ReqArg (Depth . read) "<num>") "Specify a cutoff depth for move calculation",
+    Option ['m'] ["move"] (ReqArg Move "<move>") "Make a move and display the resulting board",
+    Option ['v'] ["verbose"] (NoArg Verbose) "Display move quality (win, lose, tie, or rating)",
+    Option ['i'] ["interactive"] (NoArg Interactive) "Play a new game interactively"
+  ]
+
+-- Simplified usage function
+usage :: String -> IO ()
+usage prog = putStrLn $ usageInfo ("Usage: " ++ prog ++ " [options]") options
+
+-- Main function
 main :: IO ()
 main = do
-    putStrLn "Welcome to chess. Please enter the name of your game file: "
-    hFlush stdout
-    
-    gameFile <- getLine
-    game <- loadGame gameFile
-    putBestMove game
+  args <- getArgs
+  let (opts, _, errs) = getOpt RequireOrder options args
+  if not (null errs)
+    then do
+      mapM_ putStrLn errs
+      usage "program" -- Replace "program" with the actual name
+    else if Help `elem` opts
+      then usage "program" -- Replace "program" with the actual name
+      else handleFlags opts
 
---note that this will overwrite the contents of the file. If the file doesn't exist, it creates one with that name
+-- Handle different flags
+handleFlags :: [Flag] -> IO ()
+handleFlags opts
+  | Winner `elem` opts = do
+      putStrLn "Enter the game file name for analysis: "
+      hFlush stdout
+      gameFile <- getLine
+      game <- loadGame gameFile
+      putBestMove game
+  | otherwise = putStrLn $ "Flags provided: " ++ show opts-- Other functions to load the game and output the best move
 writeGame :: Game -> FilePath -> IO ()
 writeGame game file = do
     writeFile file (showGame game)
@@ -28,15 +61,14 @@ loadGame file = do
     return (readGame gameStr)
 
 putBestMove :: Game -> IO ()
-putBestMove game = do --print the outcome of whoWillWin here too 
-    case bestMove game depth of --                                                           this int is the depth, change as needed
+putBestMove game = do --print the outcome of whoWillWin here too
+    case bestMove game depth of -- This int is the depth, change as needed
         Just move -> putStrLn (showMove move ++ ". The expected outcome is " ++ case whoWillWin game depth of
             Just (Win White) -> "a win for white."
             Just (Win Black) -> "a win for black."
             Just Tie -> "a tie."
             Nothing -> "not certain.")
         Nothing -> putStrLn "There is no best move here."
-
 
 {-
 maxDepth = 4
