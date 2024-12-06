@@ -18,7 +18,7 @@ type Piece = (Position, Side, PieceType)
 
 type Move = (Piece, Position)
 
---      50 Move Counter              Board History for Threefold Repetition
+--      Turn limit              Board History for Threefold Repetition
 type Game = (Int, CurrentTurn, [Piece], [(CurrentTurn, [Piece])])
 
 
