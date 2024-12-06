@@ -311,7 +311,7 @@ allPositions :: [Position]
 allPositions = [(x, y) | x <- ['A'..'H'], y <- [1..8]]
 
 initialGame :: Game
-initialGame = (0, White, initialPieces, []) where
+initialGame = (100, White, initialPieces, []) where
     initialPieces = initialPawns ++ initialRooks ++ initialKnights ++ initialBishops ++ initialQueens ++ initialKings where
         initialPawns = [ ((col, if side == White then 2 else 7), side, Pawn False) | side <- [White, Black], col <- ['A'..'H']]
         initialRooks = [ ((col, if side == White then 1 else 8), side, Rook False) | side <- [White, Black], col <- ['A','H']]
@@ -357,7 +357,7 @@ getWinner game@(_, currentTurn, _, _) =
     let otherSide = otherside currentTurn in
         if checkMate game currentTurn then Just (Win otherSide)
         else if checkMate game otherSide then Just (Win currentTurn)
-                else if staleMate game || drawByMaterial game || drawByThreefoldRepetition game || drawBy50MoveRule game then Just Tie
+                else if staleMate game || drawByMaterial game || drawByThreefoldRepetition game || drawByTurnCount game then Just Tie
                 else Nothing
 
 --Get every possible move given a specfic piece
@@ -636,26 +636,27 @@ outOfBounds :: Position -> Bool
 outOfBounds (x, y) = (ord(x) > 72 || ord(x) < 65 || y > 8 || y < 1)
 
 makeMove :: Game -> Move -> Game
-makeMove (fiftyMoveCounter, side, positions, boardHistory) (piece@(startPos, pieceSide, pieceType), endPos) =
+makeMove (turnCounter, side, positions, boardHistory) (piece@(startPos, pieceSide, pieceType), endPos) =
     if side == pieceSide then
         let 
             newSide = if side == White then Black else White
             -- Determine if this move is a capture or pawn move for the 50-move rule
-            isCapture = isJust (getPiece (fiftyMoveCounter, side, positions, boardHistory) endPos)
+            isCapture = isJust (getPiece (turnCounter, side, positions, boardHistory) endPos)
             isPawnMove = case pieceType of
                 Pawn _ -> True
                 _      -> False
-            newFiftyMoveCounter = if isCapture || isPawnMove then 0 else fiftyMoveCounter + 1
+            
+            --newFiftyMoveCounter = if isCapture || isPawnMove then 0 else turnCounter + 1
 
             -- Determine if this move is a promotion move
             isPromotionMove = 
-                case getPiece (fiftyMoveCounter, side, positions, boardHistory) startPos of
+                case getPiece (turnCounter, side, positions, boardHistory) startPos of
                     Just (_, _, startPieceType) -> startPieceType /= pieceType
                     Nothing -> False
 
             -- Determine if this move is an en passant capture
             isEnPassantCapture =
-                case getPiece (fiftyMoveCounter, side, positions, boardHistory) endPos of
+                case getPiece (turnCounter, side, positions, boardHistory) endPos of
                     Just _ -> False
                     Nothing -> if pieceType == (Pawn False) && fst startPos /= fst endPos then True else False
             
@@ -712,7 +713,7 @@ makeMove (fiftyMoveCounter, side, positions, boardHistory) (piece@(startPos, pie
                                     _ -> p
                     ) (filter (\(pos, _, _) -> pos /= endPos) positions)
             updatedHistory = ((side, positions) : boardHistory)
-        in (newFiftyMoveCounter, newSide, newPositions, updatedHistory)
+        in (turnCounter -1, newSide, newPositions, updatedHistory)
     else error ("It is not " ++ show (if side == White then Black else White) ++ "'s turn")
 
 --Quick move calls makeMove but uses two positions instead of the longer alternative
@@ -789,8 +790,8 @@ drawByMaterial game@(_, _, pieces, _) =
         -- King and Bishop vs. King and Bishop (same-colored bishops)
         || length pieces == 4 && count (Bishop) == 2 && bishopsSameColor
 
-drawBy50MoveRule :: Game -> Bool
-drawBy50MoveRule (fiftyMoveCounter, _, _, _) = fiftyMoveCounter >= 100
+drawByTurnCount :: Game -> Bool
+drawByTurnCount (turnCounter, _, _, _) = turnCounter <= 0
 
 drawByThreefoldRepetition :: Game -> Bool
 drawByThreefoldRepetition (_, currentTurn, pieces, boardHistory) =
