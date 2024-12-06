@@ -62,12 +62,12 @@ loadGame file = do
 
 putBestMove :: Game -> IO ()
 putBestMove game = do --print the outcome of whoWillWin here too
-    case bestMove game of
-        move -> putStrLn (showMove move ++ ". The expected outcome is " ++ case whoWillWin game of
+    case bestMove game of -- This int is the depth, change as needed
+        Just move -> putStrLn (showMove move ++ ". The expected outcome is " ++ case whoWillWin game of
             (Win White) -> "a win for white."
             (Win Black) -> "a win for black."
-            Tie -> "a tie." 
-            )
+            Tie -> "a tie." )
+        Nothing -> putStrLn "There is no best move here."
 
 {-
 maxDepth = 4

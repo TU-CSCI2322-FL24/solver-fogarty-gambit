@@ -91,10 +91,12 @@ stringToChar _ = Nothing
 readGame :: String -> Game
 readGame str =
     let lineList = lines str
-        currentTurn = case parseSide (head lineList) of
+        turnCounter = read $ head lineList
+        listAfterTurnCounter = tail lineList
+        currentTurn = case parseSide (head listAfterTurnCounter) of
             Just turn -> turn
             Nothing -> error "Invalid current turn in the text file"
-        pieceLines = tail lineList
+        pieceLines = tail listAfterTurnCounter
 
         parsePieceLine :: String -> Piece
         parsePieceLine line =
@@ -111,7 +113,7 @@ readGame str =
             in (position, side, pieceType)
 
         pieces = map parsePieceLine pieceLines
-    in (0, currentTurn, pieces, [])
+    in (turnCounter, currentTurn, pieces, [])
 
 showGame :: Game -> String
 showGame game@(moveCount, currentTurn, pieces, threefoldStates) = let
@@ -145,29 +147,53 @@ bestFor side lst
     | Tie `elem` lst = Tie
     | otherwise = Win (otherside side)
 
-bestMove :: Game -> Move
+bestMove :: Game -> Maybe Move
 bestMove game@(_, currentTurn, _, _) =
-    let moves = allLegalMoves game
-        evaluateMove move =
-            let resultingGame = makeMove game move
-            in (whoWillWin resultingGame, move)
-        rankedMoves = map evaluateMove moves
-        bestMoveForPlayer = find (\(winner, _) -> winner == Win currentTurn) rankedMoves
-        tieMove = find (\(winner, _) -> winner == Tie) rankedMoves
-    in case bestMoveForPlayer of
-        Just (_, move) -> move  -- Best move that ensures a win
-        Nothing -> case tieMove of
-            Just (_, move) -> move  -- A move that ensures a tie
-            Nothing -> snd (head rankedMoves)  -- Fallback to any move
+    case getWinner game of
+        Just _ -> Nothing
+        Nothing ->
+            let moves = allLegalMoves game
+                evaluateMove move =
+                    let resultingGame = makeMove game move
+                        outcome = whoWillWin resultingGame
+                    in (outcome, move)
+            in if null moves then Nothing
+                else case foldr (\move acc@(outcome, _) -> 
+                        if outcome == Win currentTurn then acc else evaluateMove move
+                        ) (Win (otherside currentTurn), head moves) moves of
+                (_, move) -> Just move 
 
-whoMightWin :: Game -> Int -> (Int, Maybe Move)
-whoMightWin game@(_, currentTurn, _, _) 0 =
+--Version that immediately picks the winning move and stops searching the rest (faster for higher depths >=3)
+whoMightWin2 :: Game -> Int -> (Int, Maybe Move)
+whoMightWin2 game@(_, currentTurn, _, _) 0 =
     let rating = rateGame game
     in (rating, Nothing) -- At depth 0, no move is considered
-whoMightWin game@(_, currentTurn, _, _) depth =
+whoMightWin2 game@(_, currentTurn, _, _) depth =
     let moves = allLegalMoves game
         evaluateMove move =
-            let (rating, _) = whoMightWin (makeMove game move) (depth - 1)
+            let (rating, _) = whoMightWin2 (makeMove game move) (depth - 1)
+            in (rating, Just move)
+        evaluateAndStop (rating, move) acc =
+            if (currentTurn == White && rating == 100) || (currentTurn == Black && rating == -100)
+            then (rating, move)  -- Stop searching if a winning move is found
+            else acc
+        rankedMoves = map evaluateMove moves
+    in if null moves
+        then (rateGame game, Nothing) -- No moves available
+        else foldr evaluateAndStop (if currentTurn == White
+                                      then maximumBy (\(r1, _) (r2, _) -> compare r1 r2) rankedMoves
+                                      else minimumBy (\(r1, _) (r2, _) -> compare r1 r2) rankedMoves)
+                                      rankedMoves
+
+--Original version (faster for lower depths <=2)
+whoMightWin1 :: Game -> Int -> (Int, Maybe Move)
+whoMightWin1 game@(_, currentTurn, _, _) 0 =
+    let rating = rateGame game
+    in (rating, Nothing) -- At depth 0, no move is considered
+whoMightWin1 game@(_, currentTurn, _, _) depth =
+    let moves = allLegalMoves game
+        evaluateMove move =
+            let (rating, _) = whoMightWin1 (makeMove game move) (depth - 1)
             in (rating, Just move)
         rankedMoves = map evaluateMove moves
     in if null moves
@@ -722,7 +748,8 @@ quickMove game@(_, currentTurn, _, _) startPos endPos =
     case getPiece game startPos of
         -- Handle the pawn case
         Just (pos, side, Pawn _) ->
-            if (currentTurn == White && snd startPos == 7 && snd endPos == 8) || (currentTurn == Black && snd startPos == 2 && snd endPos == 1) then error "Use promotePiece <startPos> <endPos> <pieceType> instead!"
+            if (currentTurn == White && snd startPos == 7 && snd endPos == 8) || 
+                (currentTurn == Black && snd startPos == 2 && snd endPos == 1) then promotePiece game startPos endPos Queen
             else
             let isTwoSquareMove = abs (snd startPos - snd endPos) == 2
                 move = if isTwoSquareMove

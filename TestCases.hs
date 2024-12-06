@@ -46,5 +46,5 @@ castleGame = (2, White, [(('H',1), White, Rook False), (('A',1), White, Rook Fal
     (('E',4), Black, Pawn False), (('B',8), Black, King True)],[])
 
 whiteIsCookedGame :: Game
-whiteIsCookedGame = (2, White, [(('F',2), White, Pawn False), (('E',4), White, Pawn False), (('E',1), White, King False),
+whiteIsCookedGame = (4, White, [(('F',2), White, Pawn False), (('E',4), White, Pawn False), (('E',1), White, King False),
     (('C',4), Black, Knight), (('F',3), Black, Bishop), (('H',4), Black, Bishop), (('G',2), Black, Queen),(('E',8), Black, King False)],[])
