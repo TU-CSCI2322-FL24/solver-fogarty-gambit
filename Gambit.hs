@@ -748,7 +748,8 @@ quickMove game@(_, currentTurn, _, _) startPos endPos =
     case getPiece game startPos of
         -- Handle the pawn case
         Just (pos, side, Pawn _) ->
-            if (currentTurn == White && snd startPos == 7 && snd endPos == 8) || (currentTurn == Black && snd startPos == 2 && snd endPos == 1) then error "Use promotePiece <startPos> <endPos> <pieceType> instead!"
+            if (currentTurn == White && snd startPos == 7 && snd endPos == 8) || 
+                (currentTurn == Black && snd startPos == 2 && snd endPos == 1) then promotePiece game startPos endPos Queen
             else
             let isTwoSquareMove = abs (snd startPos - snd endPos) == 2
                 move = if isTwoSquareMove
