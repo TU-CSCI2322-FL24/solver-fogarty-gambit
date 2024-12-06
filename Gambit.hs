@@ -1,7 +1,7 @@
 module Gambit where
 import Prelude
 import Data.Maybe
-import Data.List (find)
+import Data.List
 import Data.Char
 data Side = White | Black deriving (Show, Eq)
 
@@ -12,12 +12,11 @@ data Winner = Win Side | Tie deriving (Show, Eq)
 
 type CurrentTurn = Side
 
---type Label = Char -- 'a' to 'h' to label each piece by the column letter they start on. This might not be neccessary
 type Position = (Char, Int) -- 'A' to 'H' for columns, 1 to 8 for rows
 
 type Piece = (Position, Side, PieceType)
 
-type Move = (Piece, Position) --Maybe move should take a position instead of a piece
+type Move = (Piece, Position)
 
 --      50 Move Counter              Board History for Threefold Repetition
 type Game = (Int, CurrentTurn, [Piece], [(CurrentTurn, [Piece])])
@@ -43,13 +42,6 @@ showMove (piece, pos) = ((pieceToChar piece):(show (fst pos))) ++ (show (snd pos
 validPos :: Position -> Bool
 validPos (c, n) = c `elem` ['A'..'H'] && n `elem` [1..8]
 
-getSnd :: (a, b, c) -> b
-getSnd (a, b, c) = b
-
-getThd :: (a, b, c, d) -> c
-getThd (a, b, c, d) = c
-
-
 parsePieceType :: String -> Maybe PieceType
 parsePieceType "PT" = Just (Pawn True)
 parsePieceType "PF" = Just (Pawn False)
@@ -61,10 +53,6 @@ parsePieceType "N" = Just Knight
 parsePieceType "B" = Just Bishop
 parsePieceType "Q" = Just Queen
 parsePieceType _ = Nothing
-
-
-getFrth :: (a,b,c,d) -> d
-getFrth (a,b,c,d) = d
 
 
 showPieceType :: PieceType -> String
@@ -100,7 +88,6 @@ stringToChar :: String -> Maybe Char
 stringToChar [c] = Just c
 stringToChar _ = Nothing
 
-
 readGame :: String -> Game
 readGame str =
     let lineList = lines str
@@ -129,7 +116,8 @@ readGame str =
 showGame :: Game -> String
 showGame game@(moveCount, currentTurn, pieces, threefoldStates) = let
     strPieces :: String
-    strPieces = concat ['\n':(fst pos):' ':(intToDigit (snd pos)):' ':(showSideChar side):' ':(showPieceType pieceType) | (pos, side, pieceType) <- pieces]
+    strPieces = 
+        concat ['\n':(fst pos):' ':(intToDigit (snd pos)):' ':(showSideChar side):' ':(showPieceType pieceType) | (pos, side, pieceType) <- pieces]
     in (showSideFull currentTurn) ++ strPieces
 
 --Calls displayBoard but allows for text files to be displayed
@@ -138,33 +126,65 @@ showGameFile filePath side = do
     content <- readFile filePath
     putStrLn (displayBoard (readGame content) side)
 
-whoWillWin :: Game -> Int -> Maybe Winner
-whoWillWin _ 0 = Nothing
-whoWillWin game@(_, currentTurn, _, _) limit =
+whoWillWin :: Game -> Winner
+whoWillWin game@(_, currentTurn, _, _)  =
     case getWinner game of
         Just outcome -> Just outcome
         Nothing ->
             let moves = allLegalMoves game
-                winners = map (\x -> whoWillWin (makeMove game x) (limit - 1)) moves
-                otherSide = if currentTurn == White then Black else White 
-            in if Just (Win currentTurn) `elem` winners then Just (Win currentTurn) else
-                if Just Tie `elem` winners then Just Tie else 
-                    if Just (Win otherSide) `elem` winners then Just (Win otherSide) else Nothing --Just (Win otherSide)
+                winners = map (\x -> whoWillWin (makeMove game x)) moves
+            in bestFor currentTurn winners
 
-bestMove :: Game -> Int -> Maybe Move
-bestMove game@(_, currentTurn, _, _) limit = 
+otherside :: Side -> Side
+otherside White = Black
+otherside Black = White
+
+bestFor :: Side  -> [Winner] -> Winner
+bestFor side lst
+    | (Win side) `elem` lst = Win side
+    | Tie `elem` lst = Tie
+    | otherwise = Win (otherside side)
+
+bestMove :: Game -> Move
+bestMove game@(_, currentTurn, _, _) =
+    let moves = allLegalMoves game
+        evaluateMove move =
+            let resultingGame = makeMove game move
+            in (whoWillWin resultingGame, move)
+        rankedMoves = map evaluateMove moves
+        bestMoveForPlayer = find (\(winner, _) -> winner == Win currentTurn) rankedMoves
+        tieMove = find (\(winner, _) -> winner == Tie) rankedMoves
+    in case bestMoveForPlayer of
+        Just (_, move) -> move  -- Best move that ensures a win
+        Nothing -> case tieMove of
+            Just (_, move) -> move  -- A move that ensures a tie
+            Nothing -> snd (head rankedMoves)  -- Fallback to any move
+
+whoMightWin :: Game -> Int -> (Int, Maybe Move)
+whoMightWin game@(_, currentTurn, _, _) 0 =
+    let rating = rateGame game
+    in (rating, Nothing) -- At depth 0, no move is considered
+whoMightWin game@(_, currentTurn, _, _) depth =
+    let moves = allLegalMoves game
+        evaluateMove move =
+            let (rating, _) = whoMightWin (makeMove game move) (depth - 1)
+            in (rating, Just move)
+        rankedMoves = map evaluateMove moves
+    in if null moves
+        then (rateGame game, Nothing) -- No moves available
+        else if currentTurn == White
+            then maximumBy (\(r1, _) (r2, _) -> compare r1 r2) rankedMoves -- Maximize for White
+            else minimumBy (\(r1, _) (r2, _) -> compare r1 r2) rankedMoves -- Minimize for Black
+
+rateGame :: Game -> Int
+rateGame game@(_, currentTurn, _, _)= 
     case getWinner game of
-        Just outcome -> Nothing
-        Nothing ->
-            let moves = allLegalMoves game
-                winners = map (\x -> (whoWillWin (makeMove game x) (limit-1), x) ) moves
-                otherSide = if currentTurn == White then Black else White 
-                bestMoveReal = if Just (Win currentTurn) `elem` map (fst) winners
-                    then snd (head (filter (\(win, mov) -> win == Just (Win currentTurn)) winners)) else
-                    if Just Tie `elem` map (fst) winners
-                    then snd (head (filter (\(win, mov) -> win == Just Tie) winners))
-                    else snd (head winners) 
-            in Just bestMoveReal
+        Just (Win White) -> 100
+        Just (Win Black) -> -100
+        Just Tie -> 0
+        Nothing -> 
+            if currentTurn == White then getMaterialDifference game White
+            else -(getMaterialDifference game Black)
 
 pieceToChar :: Piece -> Char
 pieceToChar (_, Black, King _) = '\x2654'
@@ -197,14 +217,12 @@ whiteFirstRow = [whiteSquare, blackSquare, whiteSquare, blackSquare, whiteSquare
 blackFirstRow = [blackSquare, whiteSquare, blackSquare, whiteSquare, blackSquare, whiteSquare, blackSquare, whiteSquare]
 emptyBoard = whiteFirstRow ++ blackFirstRow ++ whiteFirstRow ++ blackFirstRow ++ whiteFirstRow ++ blackFirstRow ++whiteFirstRow ++ blackFirstRow
 
---testGame = (White, [(('A', 5), White, Pawn True)])
-
 displayBoard :: Game -> Side -> String --IO ()
-displayBoard game pov = let
+displayBoard game@(_, _, pieces, _) pov = let
     --Association list of every piece on the board
-    positionsAndPieces = [(pos, (side, pieceType)) | (pos, side, pieceType) <- getThd game]
+    positionsAndPieces = [(pos, (side, pieceType)) | (pos, side, pieceType) <- pieces]
 
-    (missingWhitePieces, missingBlackPieces) = getMissingPieces (getThd game)
+    (missingWhitePieces, missingBlackPieces) = getMissingPieces pieces
     missingWhiteStr = map pieceToChar missingWhitePieces
     missingBlackStr = map pieceToChar missingBlackPieces
 
@@ -220,16 +238,23 @@ displayBoard game pov = let
         --Checks if we need to print a piece char or a square char
         in case maybePiece of
             --                                            Prints the row numbers on the side of the board
-            Nothing -> aux (out ++ [square] ++ "|" ++  "\n" ++ (if (snd (incrementPos currentPos) == 8) then " " else show (snd (incrementPos currentPos))) ++ (if currentPos == ('H', 1) then " " else "|")) (board) (incrementPos currentPos) 
-            (Just piece) -> aux (out ++ [pieceToChar (currentPos, fst piece, snd piece)] ++ "|" ++  "\n" ++ (if (snd (incrementPos currentPos) == 8) then " " else show (snd (incrementPos currentPos))) ++ (if currentPos == ('H', 1) then " " else "|")) (board) (incrementPos currentPos)
+            Nothing -> aux (out ++ [square] ++ "|" ++  "\n" ++ (if (snd (incrementPos currentPos) == 8) then " " else show 
+                 (snd (incrementPos currentPos))) ++ (if currentPos == ('H', 1) then " " else "|")) (board) (incrementPos currentPos) 
+            (Just piece) -> aux (out ++ [pieceToChar (currentPos, fst piece, snd piece)] ++ "|" ++  "\n" ++ 
+                (if (snd (incrementPos currentPos) == 8) then " " else show (snd (incrementPos currentPos))) ++ 
+                (if currentPos == ('H', 1) then " " else "|")) (board) (incrementPos currentPos)
 
     aux out (square:rows) currentPos = let
         maybePiece = lookup currentPos positionsAndPieces
         in case maybePiece of 
             Nothing -> aux (out ++ [square]) (rows) (incrementPos currentPos) 
             (Just piece) -> aux (out ++ [pieceToChar (currentPos, fst piece, snd piece)]) (rows) (incrementPos currentPos)
-    --                                                        Labels for the ranks                                                   The board is printed backwards for black              Labels for the ranks, backwards
-    displayStr = if pov == White then ("\n" ++ missingWhiteStr ++ "\n  ________ \n8|" ++ (aux "" emptyBoard ('A', 8)) ++ "\b ‾‾‾‾‾‾‾‾ \n  ABCDEFGH\n\n" ++ missingBlackStr ++ "\n") else ("\n" ++ missingBlackStr ++ "\n ________ " ++ (reverse (((aux "" emptyBoard ('A', 8)) ++ ""))) ++ "|8\n ‾‾‾‾‾‾‾‾ \n HGFEDCBA\n\n" ++ missingWhiteStr ++ "\n")
+
+    displayStr = 
+        if pov == White then 
+            ("\n" ++ missingWhiteStr ++ "\n  ________ \n8|" ++ (aux "" emptyBoard ('A', 8)) 
+            ++ "\b ‾‾‾‾‾‾‾‾ \n  ABCDEFGH\n\n" ++ missingBlackStr ++ "\n") else ("\n" ++ missingBlackStr ++ "\n ________ " 
+            ++ (reverse (((aux "" emptyBoard ('A', 8)) ++ ""))) ++ "|8\n ‾‾‾‾‾‾‾‾ \n HGFEDCBA\n\n" ++ missingWhiteStr ++ "\n")
     in displayStr --putStrLn displayStr
 
 --use putStrLn in the shell to print this string
@@ -239,13 +264,47 @@ getMissingPieces [] = ([], [])
 getMissingPieces pieces = let
     blackPieces = [piece | (pos, color, piece) <- pieces, color == Black]
     whitePieces = [piece | (pos, color, piece) <- pieces, color == White]
-    (missingWhitePawns, missingBlackPawns) = ((replicate (length [piece | (pos, color, piece) <- getThd initialGame, color == White, (piece == Pawn True || piece == Pawn False)] - length [piece | piece <- whitePieces, (piece == Pawn True || piece == Pawn False)]) (('A', 1), White, Pawn False)), replicate (length [piece | (pos, color, piece) <- getThd initialGame, color == Black, (piece == Pawn True || piece == Pawn False)] - length [piece | piece <- blackPieces, (piece == Pawn True || piece == Pawn False)]) (('A', 1), Black, Pawn False))
-    (missingWhiteRooks, missingBlackRooks) = ((replicate (length [piece | (pos, color, piece) <- getThd initialGame, color == White, (piece == Rook True || piece == Rook False)] - length [piece | piece <- whitePieces, (piece == Rook True || piece == Rook False)]) (('A', 1), White, Rook False)), replicate (length [piece | (pos, color, piece) <- getThd initialGame, color == Black, (piece == Rook True || piece == Rook False)] - length [piece | piece <- blackPieces, (piece == Rook True || piece == Rook False)]) (('A', 1), Black, Rook False))
-    (missingWhiteKings, missingBlackKings) = ((replicate (length [piece | (pos, color, piece) <- getThd initialGame, color == White, (piece == King True || piece == King False)] - length [piece | piece <- whitePieces, (piece == King True || piece == King False)]) (('A', 1), White, King False)), replicate (length [piece | (pos, color, piece) <- getThd initialGame, color == Black, (piece == King True || piece == King False)] - length [piece | piece <- blackPieces, (piece == King True || piece == King False)]) (('A', 1), Black, King False))
-    (missingWhiteQueens, missingBlackQueens) = ((replicate (length [piece | (pos, color, piece) <- getThd initialGame, color == White, piece == Queen] - length [piece | piece <- whitePieces, piece == Queen]) (('A', 1), White, Queen)), replicate (length [piece | (pos, color, piece) <- getThd initialGame, color == Black, piece == Queen] - length [piece | piece <- blackPieces, piece == Queen]) (('A', 1), Black, Queen))
-    (missingWhiteBishops, missingBlackBishops) = ((replicate (length [piece | (pos, color, piece) <- getThd initialGame, color == White, piece == Bishop] - length [piece | piece <- whitePieces, piece == Bishop]) (('A', 1), White, Bishop)), replicate (length [piece | (pos, color, piece) <- getThd initialGame, color == Black, piece == Bishop] - length [piece | piece <- blackPieces, piece == Bishop]) (('A', 1), Black, Bishop))
-    (missingWhiteKnights, missingBlackKnights) = ((replicate (length [piece | (pos, color, piece) <- getThd initialGame, color == White, piece == Knight] - length [piece | piece <- whitePieces, piece == Knight]) (('A', 1), White, Knight)), replicate (length [piece | (pos, color, piece) <- getThd initialGame, color == Black, piece == Knight] - length [piece | piece <- blackPieces, piece == Knight]) (('A', 1), Black, Knight))
-    in (missingWhitePawns ++ missingWhiteKnights ++ missingWhiteBishops ++ missingWhiteRooks ++ missingWhiteQueens ++ missingWhiteKings, missingBlackPawns ++ missingBlackKnights ++ missingBlackBishops ++ missingBlackRooks ++ missingBlackQueens ++ missingBlackKings)
+    (_, _, initialPieces, _) = initialGame
+    (missingWhitePawns, missingBlackPawns) = 
+        ((replicate (length [piece | (pos, color, piece) <- initialPieces, color == White, 
+        (piece == Pawn True || piece == Pawn False)] - length [piece | piece <- whitePieces, 
+        (piece == Pawn True || piece == Pawn False)]) (('A', 1), White, Pawn False)), 
+        replicate (length [piece | (pos, color, piece) <- initialPieces, color == Black, 
+        (piece == Pawn True || piece == Pawn False)] - length [piece | piece <- blackPieces, 
+        (piece == Pawn True || piece == Pawn False)]) (('A', 1), Black, Pawn False))
+    (missingWhiteRooks, missingBlackRooks) = 
+        ((replicate (length [piece | (pos, color, piece) <- initialPieces, color == White, 
+        (piece == Rook True || piece == Rook False)] - length [piece | piece <- whitePieces, 
+        (piece == Rook True || piece == Rook False)]) (('A', 1), White, Rook False)), 
+        replicate (length [piece | (pos, color, piece) <- initialPieces, color == Black, 
+        (piece == Rook True || piece == Rook False)] - length [piece | piece <- blackPieces, 
+        (piece == Rook True || piece == Rook False)]) (('A', 1), Black, Rook False))
+    (missingWhiteKings, missingBlackKings) = 
+        ((replicate (length [piece | (pos, color, piece) <- initialPieces, color == White, 
+        (piece == King True || piece == King False)] - length [piece | piece <- whitePieces, 
+        (piece == King True || piece == King False)]) (('A', 1), White, King False)), replicate 
+        (length [piece | (pos, color, piece) <- initialPieces, color == Black, 
+        (piece == King True || piece == King False)] - length [piece | piece <- blackPieces, 
+        (piece == King True || piece == King False)]) (('A', 1), Black, King False))
+    (missingWhiteQueens, missingBlackQueens) = 
+        ((replicate (length [piece | (pos, color, piece) <- initialPieces, color == White, piece == Queen]
+         - length [piece | piece <- whitePieces, piece == Queen]) (('A', 1), White, Queen)), 
+         replicate (length [piece | (pos, color, piece) <- initialPieces, color == Black, piece == Queen] 
+         - length [piece | piece <- blackPieces, piece == Queen]) (('A', 1), Black, Queen))
+    (missingWhiteBishops, missingBlackBishops) = 
+        ((replicate (length [piece | (pos, color, piece) <- initialPieces, color == White, piece == Bishop] 
+        - length [piece | piece <- whitePieces, piece == Bishop]) (('A', 1), White, Bishop)), 
+        replicate (length [piece | (pos, color, piece) <- initialPieces, color == Black, piece == Bishop] 
+        - length [piece | piece <- blackPieces, piece == Bishop]) (('A', 1), Black, Bishop))
+    (missingWhiteKnights, missingBlackKnights) = 
+        ((replicate (length [piece | (pos, color, piece) <- initialPieces, color == White, piece == Knight] 
+        - length [piece | piece <- whitePieces, piece == Knight]) (('A', 1), White, Knight)), 
+        replicate (length [piece | (pos, color, piece) <- initialPieces, color == Black, piece == Knight] 
+        - length [piece | piece <- blackPieces, piece == Knight]) (('A', 1), Black, Knight))
+    in 
+        (missingWhitePawns ++ missingWhiteKnights ++ missingWhiteBishops ++ missingWhiteRooks ++ missingWhiteQueens 
+        ++ missingWhiteKings, missingBlackPawns ++ missingBlackKnights ++ missingBlackBishops ++ missingBlackRooks 
+        ++ missingBlackQueens ++ missingBlackKings)
 
 
 allPositions :: [Position]
@@ -262,8 +321,8 @@ initialGame = (0, White, initialPieces, []) where
         initialKings = [ (('E', 1), White, King False), (('E', 8), Black, King False)]
 
 -- Calculates the difference in material between the input side and the other side
-getMaterial :: Game -> Side -> Int
-getMaterial (_, _, pieces, _) side =
+getMaterialDifference :: Game -> Side -> Int
+getMaterialDifference (_, _, pieces, _) side =
     let 
         -- Assigns a material value to each piece type
         pieceValue :: PieceType -> Int
@@ -290,32 +349,20 @@ getMaterialWinner game
     | blackMaterial > whiteMaterial = Just Black
     | otherwise               = Nothing
   where
-    whiteMaterial = getMaterial game White
-    blackMaterial = getMaterial game Black
+    whiteMaterial = getMaterialDifference game White
+    blackMaterial = getMaterialDifference game Black
 
 getWinner :: Game -> Maybe Winner
-getWinner game =
-    let (_, currentTurn, _, _) = game
-        otherSide = if currentTurn == White then Black else White 
-        in
-            if checkMate game currentTurn then Just (Win otherSide)
-            else if checkMate game otherSide then Just (Win currentTurn)
-                 else if staleMate game || drawByMaterial game || drawByThreefoldRepetition game || drawBy50MoveRule game then Just Tie
-                    else Nothing
-
-rateGame :: Game -> Side -> Int
-rateGame game side = 
-    let otherSide = if side == White then Black else White
-    in
-        case getWinner game of
-            Just (Win side) -> 100
-            Just (Win otherSide) -> -100
-            Just Tie -> 0
-            Nothing -> getMaterial game side 
+getWinner game@(_, currentTurn, _, _) =
+    let otherSide = otherside currentTurn in
+        if checkMate game currentTurn then Just (Win otherSide)
+        else if checkMate game otherSide then Just (Win currentTurn)
+                else if staleMate game || drawByMaterial game || drawByThreefoldRepetition game || drawBy50MoveRule game then Just Tie
+                else Nothing
 
 --Get every possible move given a specfic piece
-legalPieceMoves :: Game -> Piece -> [Move]
-legalPieceMoves game (pos, side, pieceType) =
+allPieceMoves :: Game -> Piece -> [Move]
+allPieceMoves game (pos, side, pieceType) =
     case pieceType of
         Pawn enPassantable -> 
             let (col, row) = pos
@@ -381,8 +428,8 @@ legalPieceMoves game (pos, side, pieceType) =
                     , if enPassantRight then [((pos, side, Pawn False), rightDiag)] else []
                     ]
 
-            in filter (\move -> not (causeCheck game move side)) singleMove ++ doubleMove ++ captureMoves ++ enPassantMoves
-            --in singleMove ++ doubleMove ++ captureMoves ++ enPassantMoves
+            --in filter (\move -> not (causeCheck game move side)) singleMove ++ doubleMove ++ captureMoves ++ enPassantMoves
+            in singleMove ++ doubleMove ++ captureMoves ++ enPassantMoves
 
         Rook hasMoved ->
             let (col, row) = pos  -- Current position of the rook
@@ -410,8 +457,8 @@ legalPieceMoves game (pos, side, pieceType) =
                 leftMoves = [ ((pos, side, Rook True), p) | p <- rookMovesInDirection positionsLeft ]
                 rightMoves = [ ((pos, side, Rook True), p) | p <- rookMovesInDirection positionsRight ]
 
-            in filter (\move -> not (causeCheck game move side)) upMoves ++ downMoves ++ leftMoves ++ rightMoves
-            --in upMoves ++ downMoves ++ leftMoves ++ rightMoves
+            --in filter (\move -> not (causeCheck game move side)) upMoves ++ downMoves ++ leftMoves ++ rightMoves
+            in upMoves ++ downMoves ++ leftMoves ++ rightMoves
         
         Knight ->
             let (col, row) = pos  -- Current position of the knight
@@ -437,8 +484,8 @@ legalPieceMoves game (pos, side, pieceType) =
                             Nothing -> True  -- Empty square, valid move
                             Just (_, pieceSide, _) -> pieceSide /= side  -- Opponent's piece, valid move
                      ]
-            in filter (\move -> not (causeCheck game move side)) validMoves
-            --in validMoves
+            --in filter (\move -> not (causeCheck game move side)) validMoves
+            in validMoves
 
         Bishop ->
             let (col, row) = pos  -- Current position of the bishop
@@ -466,8 +513,8 @@ legalPieceMoves game (pos, side, pieceType) =
                 downRightMoves = [ ((pos, side, Bishop), p) | p <- bishopMovesInDirection positionsDownRight ]
                 downLeftMoves = [ ((pos, side, Bishop), p) | p <- bishopMovesInDirection positionsDownLeft ]
 
-            in filter (\move -> not (causeCheck game move side)) upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
-            --in upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
+            --in filter (\move -> not (causeCheck game move side)) upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
+            in upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
 
         Queen ->
             let (col, row) = pos  -- Current position of the queen
@@ -506,8 +553,8 @@ legalPieceMoves game (pos, side, pieceType) =
                 downRightMoves = [ ((pos, side, Queen), p) | p <- queenMovesInDirection positionsDownRight ]
                 downLeftMoves = [ ((pos, side, Queen), p) | p <- queenMovesInDirection positionsDownLeft ]
 
-            in filter (\move -> not (causeCheck game move side)) upMoves ++ downMoves ++ leftMoves ++ rightMoves ++ upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
-            --in upMoves ++ downMoves ++ leftMoves ++ rightMoves ++ upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
+            --in filter (\move -> not (causeCheck game move side)) upMoves ++ downMoves ++ leftMoves ++ rightMoves ++ upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
+            in upMoves ++ downMoves ++ leftMoves ++ rightMoves ++ upRightMoves ++ upLeftMoves ++ downRightMoves ++ downLeftMoves
         
         King hasMoved ->
             let (col, row) = pos  -- Current position of the king
@@ -533,45 +580,57 @@ legalPieceMoves game (pos, side, pieceType) =
                                     Nothing -> True  -- Empty square, valid move
                                     Just (_, pieceSide, _) -> pieceSide /= side  -- Opponent's piece, valid move
                             ]
-            in filter (\move -> not (causeCheck game move side)) validMoves
-            --in validMoves
+            --in filter (\move -> not (causeCheck game move side)) validMoves
+            in validMoves
             
 
 --Get every possible move for a side, including castling
 allLegalMoves :: Game -> [Move]
-allLegalMoves game@(_ , side, _, _) =
-    let sidePieces = filter (\(_, s, _) -> s == side) (getThd game)
-        legalMoves = concatMap (legalPieceMoves game) sidePieces
-        --legalMoves = filter (\move -> not (causeCheck game move side)) allMoves
+allLegalMoves game@(_ , side, pieces, _) =
+    let sidePieces = filter (\(_, s, _) -> s == side) pieces
+        legalMoves = concatMap (allPieceMoves game) sidePieces
         kingSideCastle :: [Move] 
         kingSideCastle =
             if side == White then
-                if inCheck game White == False && getPiece game ('F', 1) == Nothing && getPiece game ('G', 1) == Nothing && getPiece game ('E', 1) == Just (('E', 1), White, King False) && getPiece game ('H', 1) == Just (('H', 1), White, Rook False) then
-                    if causeCheck game ((('E', 1), White, King False), ('F', 1)) side == False && causeCheck game ((('E', 1), White, King False), ('G', 1)) side == False then
-                        [((('E', 1), White, King True), ('G', 1))] 
-                    else []
+                if inCheck game White == False && getPiece game ('F', 1) == Nothing 
+                    && getPiece game ('G', 1) == Nothing && getPiece game ('E', 1) == Just (('E', 1), White, King False) 
+                    && getPiece game ('H', 1) == Just (('H', 1), White, Rook False) then
+                        if causeCheck game ((('E', 1), White, King False), ('F', 1)) side == False 
+                           && causeCheck game ((('E', 1), White, King False), ('G', 1)) side == False 
+                           then [((('E', 1), White, King True), ('G', 1))] 
+                        else []
                 else []
-            else if inCheck game Black == False && getPiece game ('F', 8) == Nothing && getPiece game ('G', 8) == Nothing && getPiece game ('E', 8) == Just (('E', 8), Black, King False) && getPiece game ('H', 8) == Just (('H', 8), Black, Rook False) then
-                    if causeCheck game ((('E', 8), Black, King False), ('F', 8)) side == False && causeCheck game ((('E', 8), Black, King False), ('G', 8)) side == False then
-                        [((('E', 8), Black, King True), ('G', 8))] 
-                    else []
+            else if inCheck game Black == False && getPiece game ('F', 8) == Nothing 
+                    && getPiece game ('G', 8) == Nothing && getPiece game ('E', 8) == Just (('E', 8), Black, King False) 
+                    && getPiece game ('H', 8) == Just (('H', 8), Black, Rook False) then
+                        if causeCheck game ((('E', 8), Black, King False), ('F', 8)) side == False 
+                           && causeCheck game ((('E', 8), Black, King False), ('G', 8)) side == False 
+                            then [((('E', 8), Black, King True), ('G', 8))] 
+                        else []
                 else []
         queenSideCastle :: [Move]
         queenSideCastle =
             if side == White then
-                if inCheck game White == False && getPiece game ('D', 1) == Nothing && getPiece game ('C', 1) == Nothing && getPiece game ('B', 1) == Nothing && getPiece game ('E', 1) == Just (('E', 1), White, King False) && getPiece game ('A', 1) == Just (('A', 1), White, Rook False) then
-                    if causeCheck game ((('E', 1), White, King False), ('D', 1)) side == False && causeCheck game ((('E', 1), White, King False), ('C', 1)) side == False then
-                        [((('E', 1), White, King True), ('C', 1))] 
-                    else []
+                if inCheck game White == False && getPiece game ('D', 1) == Nothing 
+                    && getPiece game ('C', 1) == Nothing && getPiece game ('B', 1) == Nothing 
+                    && getPiece game ('E', 1) == Just (('E', 1), White, King False) 
+                    && getPiece game ('A', 1) == Just (('A', 1), White, Rook False) then
+                        if causeCheck game ((('E', 1), White, King False), ('D', 1)) side == False 
+                           && causeCheck game ((('E', 1), White, King False), ('C', 1)) side == False 
+                            then [((('E', 1), White, King True), ('C', 1))] 
+                        else []
                 else []
-            else if inCheck game Black == False && getPiece game ('D', 8) == Nothing && getPiece game ('C', 8) == Nothing && getPiece game ('B', 8) == Nothing && getPiece game ('E', 8) == Just (('E', 8), Black, King False) && getPiece game ('A', 8) == Just (('A', 8), Black, Rook False) then
-                    if causeCheck game ((('E', 8), Black, King False), ('D', 8)) side == False && causeCheck game ((('E', 8), Black, King False), ('C', 8)) side == False then
-                        [((('E', 8), White, King True), ('C', 8))] 
-                    else []
+            else if inCheck game Black == False && getPiece game ('D', 8) == Nothing 
+                    && getPiece game ('C', 8) == Nothing && getPiece game ('B', 8) == Nothing 
+                    && getPiece game ('E', 8) == Just (('E', 8), Black, King False) 
+                    && getPiece game ('A', 8) == Just (('A', 8), Black, Rook False) then
+                        if causeCheck game ((('E', 8), Black, King False), ('D', 8)) side == False 
+                           && causeCheck game ((('E', 8), Black, King False), ('C', 8)) side == False 
+                           then [((('E', 8), White, King True), ('C', 8))] 
+                        else []
                 else []
-
-        --in legalMoves ++ kingSideCastle ++ queenSideCastle
-        in filter (\move -> not (causeCheck game move side)) legalMoves ++ kingSideCastle ++ queenSideCastle
+    in filter (\move -> not (causeCheck game move side)) legalMoves ++ kingSideCastle ++ queenSideCastle
+    --in legalMoves ++ kingSideCastle ++ queenSideCastle
 
 outOfBounds :: Position -> Bool
 outOfBounds (x, y) = (ord(x) > 72 || ord(x) < 65 || y > 8 || y < 1)
@@ -579,89 +638,86 @@ outOfBounds (x, y) = (ord(x) > 72 || ord(x) < 65 || y > 8 || y < 1)
 makeMove :: Game -> Move -> Game
 makeMove (fiftyMoveCounter, side, positions, boardHistory) (piece@(startPos, pieceSide, pieceType), endPos) =
     if side == pieceSide then
-        --if (piece, endPos) `elem` legalPieceMoves (fiftyMoveCounter, side, positions, boardHistory) piece -- && not (causeCheck (side, positions) ((startPos, pieceSide, pieceType), endPos) side)
-        --then 
-            let 
-                newSide = if side == White then Black else White
-                -- Determine if this move is a capture or pawn move for the 50-move rule
-                isCapture = isJust (getPiece (fiftyMoveCounter, side, positions, boardHistory) endPos)
-                isPawnMove = case pieceType of
-                    Pawn _ -> True
+        let 
+            newSide = if side == White then Black else White
+            -- Determine if this move is a capture or pawn move for the 50-move rule
+            isCapture = isJust (getPiece (fiftyMoveCounter, side, positions, boardHistory) endPos)
+            isPawnMove = case pieceType of
+                Pawn _ -> True
+                _      -> False
+            newFiftyMoveCounter = if isCapture || isPawnMove then 0 else fiftyMoveCounter + 1
+
+            -- Determine if this move is a promotion move
+            isPromotionMove = 
+                case getPiece (fiftyMoveCounter, side, positions, boardHistory) startPos of
+                    Just (_, _, startPieceType) -> startPieceType /= pieceType
+                    Nothing -> False
+
+            -- Determine if this move is an en passant capture
+            isEnPassantCapture =
+                case getPiece (fiftyMoveCounter, side, positions, boardHistory) endPos of
+                    Just _ -> False
+                    Nothing -> if pieceType == (Pawn False) && fst startPos /= fst endPos then True else False
+            
+            -- Determine the captured pawn's position for en passant
+            capturedPawnPos = 
+                if isEnPassantCapture 
+                then (fst endPos, snd startPos) -- One row behind the landing position
+                else endPos
+
+            isCastlingMove = case pieceType of
+                    King _ -> abs ((ord (fst endPos)) - (ord (fst startPos))) == 2
                     _      -> False
-                newFiftyMoveCounter = if isCapture || isPawnMove then 0 else fiftyMoveCounter + 1
-
-                -- Determine if this move is a promotion move
-                isPromotionMove = 
-                    case getPiece (fiftyMoveCounter, side, positions, boardHistory) startPos of
-                        Just (_, _, startPieceType) -> startPieceType /= pieceType
-                        Nothing -> False
-
-                -- Determine if this move is an en passant capture
-                isEnPassantCapture =
-                    case getPiece (fiftyMoveCounter, side, positions, boardHistory) endPos of
-                        Just _ -> False
-                        Nothing -> if pieceType == (Pawn False) && fst startPos /= fst endPos then True else False
-                
-                -- Determine the captured pawn's position for en passant
-                capturedPawnPos = 
-                    if isEnPassantCapture 
-                    then (fst endPos, snd startPos) -- One row behind the landing position
-                    else endPos
-
-                isCastlingMove = case pieceType of
-                        King _ -> abs ((ord (fst endPos)) - (ord (fst startPos))) == 2
-                        _      -> False
-                newPositions = 
-                    if isCastlingMove
-                    then
-                        let rookStartPos = if fst endPos > fst startPos
-                                        then ('H', snd startPos)  -- King-side castling
-                                        else ('A', snd startPos)  -- Queen-side castling
-                            rookEndPos = if fst endPos > fst startPos
-                                        then ('F', snd startPos)  -- King-side castling
-                                        else ('D', snd startPos)  -- Queen-side castling
-                        in map (\p@(pos, s, pt) -> 
-                                    if pos == startPos 
-                                    then (endPos, s, King True)       -- Move the King
-                                    else if pos == rookStartPos 
-                                    then (rookEndPos, s, Rook True)   -- Move the Rook
-                                    else p) positions
-                    else if isPromotionMove
-                        then
-                            map (\p@(pos, s, pt) -> 
-                                    if pos == startPos 
-                                    then (endPos, s, pieceType)  -- Replace the pawn with the new piece
-                                    else p
-                            ) (filter (\(pos, _, _) -> pos /= endPos) positions) 
-                    
-                    else if isEnPassantCapture
-                        then
-                            map (\p@(pos, s, pt) -> 
-                                    if pos == startPos 
-                                    then (endPos, s, pt)  -- Move the pawn
-                                    else p
-                    ) (filter (\(pos, _, _) -> pos /= capturedPawnPos) positions) -- Remove the captured pawn
-                        
-                    else
-                        map (\p@(pos, s, pt) -> -- ChatGPT helped write this part about modifying the pawn, rook and king booleans after a move
+            newPositions = 
+                if isCastlingMove
+                then
+                    let rookStartPos = if fst endPos > fst startPos
+                                    then ('H', snd startPos)  -- King-side castling
+                                    else ('A', snd startPos)  -- Queen-side castling
+                        rookEndPos = if fst endPos > fst startPos
+                                    then ('F', snd startPos)  -- King-side castling
+                                    else ('D', snd startPos)  -- Queen-side castling
+                    in map (\p@(pos, s, pt) -> 
                                 if pos == startPos 
-                                then case pt of
-                                        Pawn _ -> (endPos, s, Pawn (abs (snd endPos - snd startPos) == 2))
-                                        Rook _ -> (endPos, s, Rook True)
-                                        King _ -> (endPos, s, King True)
-                                        _ -> (endPos, s, pt)
-                                else case pt of
-                                        Pawn _ -> (pos, s, Pawn False)  -- Reset enpassantable for all other pawns
-                                        _ -> p
-                        ) (filter (\(pos, _, _) -> pos /= endPos) positions)
-                updatedHistory = ((side, positions) : boardHistory)
-            in (newFiftyMoveCounter, newSide, newPositions, updatedHistory)
+                                then (endPos, s, King True)       -- Move the King
+                                else if pos == rookStartPos 
+                                then (rookEndPos, s, Rook True)   -- Move the Rook
+                                else p) positions
+                else if isPromotionMove
+                    then
+                        map (\p@(pos, s, pt) -> 
+                                if pos == startPos 
+                                then (endPos, s, pieceType)  -- Replace the pawn with the new piece
+                                else p
+                        ) (filter (\(pos, _, _) -> pos /= endPos) positions) 
+                
+                else if isEnPassantCapture
+                    then
+                        map (\p@(pos, s, pt) -> 
+                                if pos == startPos 
+                                then (endPos, s, pt)  -- Move the pawn
+                                else p
+                ) (filter (\(pos, _, _) -> pos /= capturedPawnPos) positions) -- Remove the captured pawn
+                    
+                else
+                    map (\p@(pos, s, pt) -> -- ChatGPT helped write this part about modifying the pawn, rook and king booleans after a move
+                            if pos == startPos 
+                            then case pt of
+                                    Pawn _ -> (endPos, s, Pawn (abs (snd endPos - snd startPos) == 2))
+                                    Rook _ -> (endPos, s, Rook True)
+                                    King _ -> (endPos, s, King True)
+                                    _ -> (endPos, s, pt)
+                            else case pt of
+                                    Pawn _ -> (pos, s, Pawn False)  -- Reset enpassantable for all other pawns
+                                    _ -> p
+                    ) (filter (\(pos, _, _) -> pos /= endPos) positions)
+            updatedHistory = ((side, positions) : boardHistory)
+        in (newFiftyMoveCounter, newSide, newPositions, updatedHistory)
     else error ("It is not " ++ show (if side == White then Black else White) ++ "'s turn")
 
 --Quick move calls makeMove but uses two positions instead of the longer alternative
 quickMove :: Game -> Position -> Position -> Game
-quickMove game startPos endPos =
-    let (_, currentTurn, _, _) = game in
+quickMove game@(_, currentTurn, _, _) startPos endPos =
     case getPiece game startPos of
         -- Handle the pawn case
         Just (pos, side, Pawn _) ->
@@ -691,25 +747,21 @@ quickMove game startPos endPos =
         Nothing -> error "No piece at starting position"
 
 promotePiece :: Game -> Position -> Position -> PieceType -> Game
-promotePiece game startPos endPos promotionPiece =
-    let (_, currentTurn, _, _) = game in
-        if (currentTurn == White && snd startPos == 7 && snd endPos == 8) || (currentTurn == Black && snd startPos == 2 && snd endPos == 1) then
-        case getPiece game startPos of
-            Just (pos, side, Pawn _) ->
-                let move = ((pos, side, promotionPiece), endPos)
-                in if move `elem` allLegalMoves game then makeMove game move else error ("Such move does not exist")
-
-            Just piece -> 
-                error "Not a pawn at starting position"
-
-            Nothing -> error "No piece at starting position"
-        else error "not a piece able to be promoted"
+promotePiece game@(_, currentTurn, _, _) startPos endPos promotionPiece =
+    if (currentTurn == White && snd startPos == 7 && snd endPos == 8) || (currentTurn == Black && snd startPos == 2 && snd endPos == 1) then
+    case getPiece game startPos of
+        Just (pos, side, Pawn _) ->
+            let move = ((pos, side, promotionPiece), endPos)
+            in if move `elem` allLegalMoves game then makeMove game move else error ("Such move does not exist")
+        Just piece -> 
+            error "Not a pawn at starting position"
+        Nothing -> error "No piece at starting position"
+    else error "not a piece able to be promoted"
 
 --Check if a side is currently in the state of checkmate, aka that side is in check and has no more legal moves to be made
 checkMate :: Game -> Side -> Bool
-checkMate game side =
-    let (_, currentTurn, _, _) = game in
-        if currentTurn == side then length (allLegalMoves game) == 0 && inCheck game side else False
+checkMate game@(_, currentTurn, _, _) side =
+    (currentTurn == side) && (length (allLegalMoves game) == 0 && inCheck game side)
 
 --Check if the current turn of the game as no moves but is also not in check
 staleMate :: Game -> Bool
@@ -718,9 +770,8 @@ staleMate game@(_, side, _, _) =
 
 --Check if the game is in a default tie by material state
 drawByMaterial :: Game -> Bool
-drawByMaterial game =
-    let (_, _, pieces, _) = game
-        pieceTypes = [pieceType | (_, _, pieceType) <- pieces]
+drawByMaterial game@(_, _, pieces, _) =
+    let pieceTypes = [pieceType | (_, _, pieceType) <- pieces]
         count :: PieceType -> Int
         count pType = length [pt | pt <- pieceTypes, pt == pType]
         bishopsSameColor :: Bool
@@ -750,12 +801,13 @@ drawByThreefoldRepetition (_, currentTurn, pieces, boardHistory) =
 --causeCheck White checks if a move will put the White king in check.
 causeCheck :: Game -> Move -> Side -> Bool
 causeCheck game move side = 
-    let newGame = makeMove game move in
-    inCheck newGame side
+    let newGame = makeMove game move 
+    in inCheck newGame side
 
 -- Check if a specific side is currently in check
 inCheck :: Game -> Side -> Bool
-inCheck game currentSide = let (x, y) = getKingPosition game currentSide in
+inCheck game currentSide = 
+    let (x, y) = getKingPosition game currentSide in
     	checkLineDiag (chr(ord (x)+1), y+1) (1 ,  1) game currentSide ||
     	checkLine     (chr(ord (x)+1), y  ) (1 ,  0) game currentSide ||
     	checkLineDiag (chr(ord (x)+1), y-1) (1 , -1) game currentSide ||
@@ -770,42 +822,50 @@ inCheck game currentSide = let (x, y) = getKingPosition game currentSide in
     	checkKnights (chr(ord (x)), y) game currentSide
 
 checkLine :: Position -> (Int, Int)-> Game -> Side -> Bool
-checkLine (x, y) (xAdd, yAdd) game side = if outOfBounds (x, y) then False else
-                                        let otherSide = if side == White then Black else White in case getPiece game (x, y) of 
-                                            Just (_, v, Queen) -> v == otherSide
-                                            Just (_, v, Rook _) -> v == otherSide
-                                            Just (_, _, _) -> False
-                                            otherwise -> checkLine (chr(ord(x) + xAdd), y + yAdd) (xAdd, yAdd) game side
+checkLine (x, y) (xAdd, yAdd) game side = 
+    if outOfBounds (x, y) then False else
+        let otherSide = otherside side in case getPiece game (x, y) of 
+            Just (_, v, Queen) -> v == otherSide
+            Just (_, v, Rook _) -> v == otherSide
+            Just (_, _, _) -> False
+            otherwise -> checkLine (chr(ord(x) + xAdd), y + yAdd) (xAdd, yAdd) game side
 checkLineDiag :: Position -> (Int, Int)-> Game -> Side -> Bool
-checkLineDiag (x, y) (xAdd, yAdd) game side = if outOfBounds (x, y) then False else
-                                        let otherSide = if side == White then Black else White in case getPiece game (x, y) of 
-                                            Just (_, v, Queen) -> v == otherSide
-                                            Just (_, v, Bishop) -> v == otherSide
-                                            Just (_, _, _) -> False
-                                            otherwise -> checkLineDiag (chr(ord(x) + xAdd), y + yAdd) (xAdd, yAdd) game side
+checkLineDiag (x, y) (xAdd, yAdd) game side = 
+    if outOfBounds (x, y) then False else
+        let otherSide = otherside side in case getPiece game (x, y) of 
+            Just (_, v, Queen) -> v == otherSide
+            Just (_, v, Bishop) -> v == otherSide
+            Just (_, _, _) -> False
+            otherwise -> checkLineDiag (chr(ord(x) + xAdd), y + yAdd) (xAdd, yAdd) game side
 
 
 checkPawn :: Position -> Game -> Side -> Bool
-checkPawn (x, y) game side = if outOfBounds (x, y) then False else
-                         	if ord(x) > 72 || ord(x) < 65 then False else 
-                            let otherSide = if side == White then Black else White in case getPiece game (x, y) of 
-                                            Just (_, v, Pawn _) -> v == otherSide
-                                            otherwise -> False
+checkPawn (x, y) game side = 
+    if outOfBounds (x, y) then False else
+        if ord(x) > 72 || ord(x) < 65 then False else 
+            let otherSide = otherside side in 
+                case getPiece game (x, y) of 
+                    Just (_, v, Pawn _) -> v == otherSide
+                    otherwise -> False
 
 checkKing :: Position -> Game -> Side -> Bool
-checkKing (x, y) game side = let (u, v) = getKingPosition game (if side == White then Black else White) in
-    (abs(ord(x) - ord(u)) <= 1 && abs(y-v) <= 1)
+checkKing (x, y) game side = 
+    let (u, v) = getKingPosition game (if side == White then Black else White)
+    in (abs(ord(x) - ord(u)) <= 1 && abs(y-v) <= 1)
 
 checkKnights :: Position -> Game -> Side -> Bool
-checkKnights (x, y) game current = checkKnight ([(chr(ord(x) + z), y + u) | z <- [1, -1], u <- [2, -2]] ++ [(chr(ord(x) + z), y + u) | z <- [2, -2], u <- [1, -1]]) game otherside
-                        	where otherside = if current == White then Black else White
+checkKnights (x, y) game current = 
+    checkKnight ([(chr(ord(x) + z), y + u) | z <- [1, -1], u <- [2, -2]] ++ 
+        [(chr(ord(x) + z), y + u) | z <- [2, -2], u <- [1, -1]]) game otherSide
+    where otherSide = otherside current
 
 checkKnight :: [Position] -> Game -> Side -> Bool
 checkKnight [] _ _ = False
-checkKnight ((x, y): xs) game side = if outOfBounds (x, y) then checkKnight xs game side else
-                                      	case getPiece game (x, y) of 
-                                            Just ((x, y), v, Knight) -> if v == side then True else checkKnight xs game side
-                                            otherwise -> checkKnight xs game side
+checkKnight ((x, y): xs) game side = 
+    if outOfBounds (x, y) then checkKnight xs game side else
+        case getPiece game (x, y) of 
+            Just ((x, y), v, Knight) -> if v == side then True else checkKnight xs game side
+            otherwise -> checkKnight xs game side
 
 getKingPosition :: Game -> Side -> Position
 getKingPosition (_, _, pieces, _) side =
@@ -815,102 +875,4 @@ getKingPosition (_, _, pieces, _) side =
 
 --Takes a position and returns the current piece at that position, if any
 getPiece :: Game -> Position -> Maybe Piece
-getPiece (_, _, pieces, _) pos = 
-    case find (\(pPos, _, _) -> pPos == pos) pieces of
-        Just piece -> Just piece
-        Nothing    -> Nothing
-
---hi
-
-{-
-@#@@@@@@@@@@@@@@@@@@@@@@@#+@;##+'++####@@@@@@@@+#'+'+##+'+';;;+@@@@@@@@@@@@@@@@@@@@@@@@@@@
-++####@@@@@@@@@@@@@@@@@@#+@+@##++#+###@#@@@##@@@@#####@+@#+''+@#@@@@@@@@@@@@@@@@@@@@@@####
-++#+++###@@@@@@@@@@@@@@@@@@@@@##@###@@@#@@@@@@@###@##@#@@+@#@@@+@@@@@@@@@@@@@@@@@@###+####
-+++#'++++#@@@@@@@@@@@@@@#####@@@@@@@@@@@#@@#@#####################@@@@@@@@@@@@@@@##+#++#++
-+###++++++#@@@@@@@@@@@@#+#####++++++#+#+##+####+####################@@@@@@@@@@@@####+++###
-++##+++++++#@@@@@@@@@###+####+++++#++++++++#+++#++###################@@@@@@@@@@@###+######
-######+++++#@@@@@@@@###+####+#+++++++++++++++'+++++##############@####@@@@@@@@@###+####@##
-@@@@@@@@++++##@@@@@##++####+++++++'+++++''+++++#++######+##############@@@@@@@#++###@@@@@@
-#@#@###@@#+++#@@@@###++##++'##++'++'+++++'++'''++#+#####++##############@@@@@@#+##@@@####@
-#########@#+++@@@@@##++###++#+##++'''+##'+++'+'+++#+#+##+++#++###########@@@@#++#@@#######
-##########@+++@@@@###+++++++++++++'+++##++++'''''+++++++++++++++#########@@@@++#@@########
-###########@+#@@@####''++'''++##+++++#+#+++'''''+''+++++++++++++##########@@@#+#@#########
-###+#++####@++@@@###+''++'+'+++#++++###++++++''+''+++++++++'+'+++#+##+####@@@#+@@#########
-#++++++#####+#@@###+'##+++++++#++++++#+++++++'+'+''''+'+++++''+++++#+######@@##@@#########
-++++++++###++#@@####'++###++++++++++++++'+++++''''''++++++'+++++++++++#####@@@+#@#########
-#+++++++##@++@#@+#+#++++##+'''+'++++++++++++++'+++''++++++'++++++++++#++###@@@#+@#########
-#+++++++###++@@###+#+'++##++''+++++++++++++++++++''''++++++++++++++++++#####@@#+@@########
-##++++++#@'+@@@++++''++#+++++++++#++++++++++++++++++''+++++++++++++++'+#####@@@++@########
-++++++++##+#@;@+#++;''++++++++++###++++++++++++++++#++'+'++++++#+++++'+++###;#@#+@@#######
-#+#+++###++#@@#++++'''+++#++++++####+##++++++'++++++'++++'+++++++++++++#####@@@@+#@#######
-####++##@++@@@##+++'';'+++@@@@@@@@@#+++#+++#+++++'++++++#@@@@@@@@#+++++++####@@@#+@@######
-###+####++#@@@+++++;;'''@@@@@@@@@@@@@@@#+##+#####+++#@@@@@@@@@@@@@@@+++++####@@@#+#@######
-#######@'#@@@##+++'''''+@@@@@@@@@@@@@@@@@+++++#+++#@@@@@@@@@@@@@@@@@+''+++###@@@@++@@#####
-#@@@@@##+#@@@#+#++';'';'@@@@@@@@@@@@@@@@#+++++++++#@@@@@@@@@@@@@@@@@'+++++++##@@@#+#@@@@#@
-######+++@@@@++++#'''''+@@@@@@@@@@@@@@@#+'+++++++++#@@@@@@@@@@@@@@@++++'+++++#@@@@#++#####
-#++#++++#@@@#++++''''+'+@@@@@##+'+'+++++'++++++++++++++####+##@@@@@+++++++'+###@@@@#++####
-+++##++#@@@##++++;''+''+#@@#+++++++++++++++++#++++++++##+++++++#@@@+++++'++++###@@@####+++
-##+##@@@@@@###++'''''''++++++++++##+'+++++++##+++++++++####++++++++++++++'''+###@@@@@@####
-@@@@@@@@@@@####+'''''+++++++#@@@@@@@#++'+'++++++++++++@@@@@@@##+++++'+++++++++##@@@@@@@@@@
-@@@@@@@@@@@####''''''''++###@@@@#@@@@@@'++++++++++++#@@#@@@@@@@#++''+++++++'++##@@@@@@@@@@
-@@@@@@@@@@@####''';'''+'+##@@@@@@@@@@@@#+++++++++++#@@@@@@@@@@#@#+'++'++++++++##@@@@@@@@@@
-@@@@@@@@@@####'''';;''+++##@@@@@@@@@@@@@++++++++++#@@@@@@@@###@@@#+++++#++++++##@@@@@@@@@@
-@@@@@@@@@@###+';;'''''''+@@@@@@@;:,@@@@@#+++#+++++#@@:     :@@@#@@+++++++++#+++#@@@@@@@@@@
-@@@@@@@@@@###';;';++''++#@@#:.`.:,:'@@@@@+++++++++;,``,:,:   `@@@@++++#+++++'#+#@@@@@@@@@@
-@@@@@@@@@@##+';''''+++++#@@':.; ...,@@@@@###+++++#:,`; ...`   @@@@#++++#++++++##@@@@@@@@@@
-@@@@@@@@@@+#''''''+'++++@@@':.;:@@@,@@@@@##++++++#:,``'@@.    @@@@@+++##+++++####@@@@@@@@@
-@@@@@@@@@#+++''+'''+++++@@@#:,''@@@,@@@@@++#++#++#;,,'#@@;:   @@@@@#++#++++++####@@@@@@@@@
-@@@@@@@@@++'++'''';'''++@@@@:,++@@':+@@@@##+++##+#;,.++@@;;   @@@@@#+++++++++#####@@@@@@@@
-@@@@@@@#+++'+'+''''''''+#@@@;,.@@#+++@@@@##+++##+#::,'@##'    @@#@@#'+#+++++#+#+###@@@@@@@
-@@@@@@#+#+'';';'''';'''+#@@@+:,``,  @@@@@@@@@@@@@@@+,.`';     @@@@@#++++++++#+#+####@@@@@@
-@@@@@@+++''';';;';;;''+'+@@@@;:.`` `@@@@@@@@@@@@@@@@@@@`     @@@@@#++'#+#+##++++#####@@@@@
-@@@@@#+'+'';'';;'';;'''++#@@@@@#@@@@@@@@@@@@@@@@@@@@@@@@`  :@@@@@#++++++++++'+##+####@@@@@
-@@@@@+''+'''';;::;;;';''+++@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@##++''+++++++++#+#####@@@@
-@@@@#+'''+'+';;;;;;;;''+++#@@@#@@@@@#@@@@@@@@@@@@@@@@@@@@#@@@@@####+++++#+++++++++####@@@@
-@@@@#+''++'+'';';;'''++###+++##+##@@.@@@@@@@@@@@@@@@@@@'@@@#########++#++##++++++++###@@@@
-@@@@#+'''''++''';;''++##+++++++++##@@@@@@@@@@@@@@@@@@@@@@###+###########+#++++++#++####@@@
-@@@@#+'''''+'';';';'##+''++'+++++++#@+#@@@@@@@@@+'::+@@@####++#++###+####+#++#++##++###@@@
-@@@@#+''+'''';;';;#++';''++'+'+'++++#@@@@@@@@@@@#@@@@@@##++#+++'+'+++++##++#+++++#++###@@@
-@@@@##+'''';;;;;;#'';';''++'+'''''''''+@@@@@@@@@@@@@@###+++++++++++#+'++###++++##++++##@@@
-@@@@#+'''''';;'';+'';'';''''''''+''''';+++#@@@@@@#++#++#+++++++++++++++++#++++++#+++##@@@@
-@@@@##'''''';;;;#';;;;';''';'''''+';;''+'++++++++++++++++++++'+++++''+''++#++#+++#++##@@@@
-@@@@@#+++';''';'';;;;@#;'''';'';;';';;;''''''+#''''++++'+++++'+'+''''@''++++++++##+###@@@@
-@@@@@#'+++''';''';:;:@#;''@@';;;';;'';;;''''''#''''''''+''''++++@@'''@+'''+#++++##+###@@@@
-@@@@@##+++;:';'+';::;;;;;;;'';;';'';'''';'''''+'''''+''''';'+'++''''''''++'+++++#++##@@@@@
-@@@@@@##+;;;;'+';::;::::;;:';;''''''';''';'''''';'''''''''''''''''''''''#'''+#+##+###@@@@@
-@@@@@@##+'''''''::::;;':;::;''''''''''''''''''''''+''''';'''''''''''+'''''''###+####@@@@@@
-@@@@@@@##++'+'+':;';;:@@:;:;'''''''''''''''''''''''''''';;''''''''''@@'''''+#######@@@@@@@
-@@@@@@@@##+++++';';;;;''':;;;''''''''''';;''''''''''''''''''''''''''''''''''######@@@@@@@@
-@@@@@@@@@+#++##+'':';;;;;;';';''''+''''''''''''''+'''''''''''''''''''''''''+#####@@@@@@@@@
-@@@@@@@@@@#+#+##+';'''';';;';'''''''''''''''''''''''''''''''''''''+'+''''+'####@@@@@@@@@@@
-@@@@@@@@@@@#####+'''''+';';'''''''''''''''''+''+''+'''''''''''''+'+++++'''++###@@@@@@@@@@@
-@@@@@@@@@@@@####+++++'';'++'+'''++'+'''''''''+''++++'+'''''''+++++++++'''+###@@@@@@@@@@@@@
-@@@@@@@@@@@@@@+##++''+'''+++++'++++++++'''''++'+++'+'''''''++++++++'++++++#@#@@@@@@@@@@@@@
-@@@@@@@@@@@@@@+'#++++'+++''+'++++++++++++'''++''++++''+++'''++++++++++#++####@@@@@@@@@@@@@
-@@@@@@@@@@@@@@++#@++++++'++++++++++++++++++'+++++++++++'++++++++++++#+##+####@@@@@@@@@@@@@
-@@@@@@@@@@@@@@+++@@#++++++++++++++++++++++++++++++'++++++++++++#++#####@#####@@@@@@@@@@@@@
-@@@@@@@@@@@@@@+'#@@@###+###+++++#+#++++++++++++++++++++++++++###+######@#####@@@@@@@@@@@@@
-@@@@@@@@@@@@@@+'+#@@@@##@########++++++++++++++++++++++############@#@@#@##++@@@@@@@@@@@@@
-@@@@@@@@@@@@@@++##@@@@@@@@+#@@@@###############+#+########@@##@+'###@##@##+#+@@@@@@@@@@@@@
-@@@@@@@@@@@@@@+++##@@@@@@@'#@@@@@@@@@@@@@@@@@@@@@@@@@@@#:`@@@#@#'@@@@@@@##++#@@@@@@@@@@@@@
-@@@@@@@@@@@@@@+#+###@@@@@@'#@++'+'+'@@@@@@@@@@@@#+'';##'+#''''@''+@@@@@#####+@@@@@@@@@@@@@
-@@@@@@@@@@@@@@++#+####@@@@:@@,:;;;;;##+'''#''';:'''''+@';;;;;:@;;+@@@@########@@@@@@@@@@@@
-@@@@@@@@@@@@@@##++++++##@@;@@.:::::,;':;;;;;@@'@;::;;;:;,::::,@:,'@@##########@@@@@@@@@@@@
-@@@@@@@@@@@@@@+#++'''+######@.:::,,,@+::::,,@@@@::,:,:@#,,,,,.@@@######++#####@@@@@@@@@@@@
-@@@@@@@@@@@@@@+'+''++'''+########;.`@',,,.,.@@@@;,,,..@@,:'@@@##########++++#@@@@@@@@@@@@@
-@@@@@@@##@@@@@++'+++;'''++++###########@@#@#####@#@@@##@########+#+++++++##+#@@@@@@@@@@@@@
-@@@#########@@#++'++'';'++++++###############+#@##@#@##+##++#+++++++'+++++#+###########@@@
-@#+##########@+++''+''++'++++'++++++###+###++########+++##+++++++++++++##+#+##############
-###++######@@@#++''++''''+#'+#+++###+'+++#++++#++++++++#++'++++++++++++##+################
-+++#####+##@@@@#+''++'''+'+#+++#++++++++++++++#++++++++++#++'++++++++###+#################
-+++#########@@@#+'++++++''+'#++++'++++++'+++++#++++++++'+++++++#+++#+#######@#############
-+#++####@#@#@@@@#++'+++''+'+'+'++'++++++'+++++++''+++++++++++++###+##+#####@@########+####
-+++++#+####@@@@@@#++#+++#++++++++''+++++++++++++'''+++++++++++###++########@@########++##+
-;#++#+#####@@@@@@@##+++++++++++++++++++++++##+++'+'+++++++++##+###########@@@@#########++#
-++'+++#####@@@@@@@@#+##+#+++#++#+++++++++#+##+++++++++++++#+#############@@@@@#######+++++
-'''++#++##@@@@@@@@@@###+#+###+##+++++++++++###++++++#++++################@@@@@######++++''
-;''+++++###@@@@@@@@@#############+###+++#+###++++##+++++#################@@@@@#####++++++'
-;''++++#####@@@@@@@###.############++++#######+++++#+#####################@+@@@#+#++'+++'+
-+;''+'+####@@@@@@@####+@+###########+##########+++############@@###@###+##@@@@@###++++++''
-@#'''+++###@@@@@@+###++.#@@###########++################@#@##@@@@@'@######@@@@@#++#++++'+@
--}
+getPiece (_, _, pieces, _) pos = find (\(pPos, _, _) -> pPos == pos) pieces
