@@ -32,25 +32,30 @@ usage prog = putStrLn $ usageInfo ("Usage: " ++ prog ++ " [options]") options
 main :: IO ()
 main = do
   args <- getArgs
-  let (opts, _, errs) = getOpt RequireOrder options args
+  let (opts, nonOpts, errs) = getOpt RequireOrder options args
   if not (null errs)
     then do
       mapM_ putStrLn errs
-      usage "program" -- Replace "program" with the actual name
+      usage "gambit"
     else if Help `elem` opts
-      then usage "program" -- Replace "program" with the actual name
-      else handleFlags opts
+      then usage "gambit"
+      else handleFlags opts nonOpts
 
 -- Handle different flags
-handleFlags :: [Flag] -> IO ()
-handleFlags opts
+handleFlags :: [Flag] -> [String] -> IO ()
+handleFlags _ [] = putStrLn "No game file provided..."
+
+handleFlags [] (gameFile:_) = do  --story 21
+  game <- loadGame gameFile
+  putGoodMove game
+
+--opts are the flags, nonOpts is a list that should just include the filename
+handleFlags opts (gameFile:_)
   | Winner `elem` opts = do
-      putStrLn "Enter the game file name for analysis: "
-      hFlush stdout
-      gameFile <- getLine
       game <- loadGame gameFile
       putBestMove game
   | otherwise = putStrLn $ "Flags provided: " ++ show opts-- Other functions to load the game and output the best move
+
 writeGame :: Game -> FilePath -> IO ()
 writeGame game file = do
     writeFile file (showGame game)
