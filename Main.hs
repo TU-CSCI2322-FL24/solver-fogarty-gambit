@@ -12,11 +12,11 @@ depth = 4
 
 -- Define the options
 data Flag = Help | Winner | Depth Int | Move String | Verbose | Interactive | Unknown
-  deriving (Show, Eq)  -- Derive Eq so that elem can be used
--- Options for command-line flags
+  deriving (Show, Eq)
+
 options :: [OptDescr Flag]
-options = [
-    Option ['h'] ["help"] (NoArg Help) "Display this help message",
+options =
+  [ Option ['h'] ["help"] (NoArg Help) "Display this help message",
     Option ['w'] ["winner"] (NoArg Winner) "Show the best move using exhaustive search",
     Option ['d'] ["depth"] (ReqArg (Depth . read) "<num>") "Specify a cutoff depth for move calculation",
     Option ['m'] ["move"] (ReqArg Move "<move>") "Make a move and display the resulting board",
@@ -24,54 +24,33 @@ options = [
     Option ['i'] ["interactive"] (NoArg Interactive) "Play a new game interactively"
   ]
 
--- Show the help message
+-- Simplified usage function
 usage :: String -> IO ()
-usage prog = do
-    putStrLn $ "Usage: " ++ prog ++ " [options]"
-    putStrLn "Options:"
-    mapM_ (putStrLn . usageInfo) options
-  where
-    usageInfo (Option short long arg desc) =
-        let shortFlags = if null short then "" else "-" ++ [head short]
-            longFlags = if null long then "" else "--" ++ unwords (map (++ ", ") (init long) ++ [last long])
-            flags = unwords $ filter (not . null) [shortFlags, longFlags]
-        in "  " ++ flags ++ " " ++ argDesc arg ++ " - " ++ desc
-    argDesc (NoArg _) = ""
-    argDesc (ReqArg _ argName) = argName
-    argDesc (OptArg _ argName) = "[" ++ argName ++ "]"
+usage prog = putStrLn $ usageInfo ("Usage: " ++ prog ++ " [options]") options
+
+-- Main function
 main :: IO ()
 main = do
-    args <- getArgs
-    case getOpt RequireOrder options args of
-        (opts, [], []) -> runOptions opts args  -- Pass args to runOptions
-        (_, _, errs) -> do                      -- If errors in arguments
-            putStrLn $ "Error: " ++ unlines errs
-            usage "program"                     -- Replace "program" with the actual program name
-  where
-    runOptions opts _ = do
-        if Help `elem` opts
-            then usage "program"                -- Replace "program" with the actual program name
-            else if null opts
-                then defaultBehavior            -- Fallback to default behavior
-                else handleFlags opts           -- Handle other flags
+  args <- getArgs
+  let (opts, _, errs) = getOpt RequireOrder options args
+  if not (null errs)
+    then do
+      mapM_ putStrLn errs
+      usage "program" -- Replace "program" with the actual name
+    else if Help `elem` opts
+      then usage "program" -- Replace "program" with the actual name
+      else handleFlags opts
 
-    -- Default behavior: old main functionality
-    defaultBehavior :: IO ()
-    defaultBehavior = do
-        putStrLn "Welcome to chess. Please enter the name of your game file: "
-        hFlush stdout
-        gameFile <- getLine
-        game <- loadGame gameFile
-        putBestMove game
-
-    -- Placeholder for other flag handling
-    handleFlags :: [Flag] -> IO ()
-    handleFlags opts = do
-        -- Implement specific behaviors for flags like -w, -d, etc.
-        putStrLn $ "Flags provided: " ++ show opts
-
-
--- Other functions to load the game and output the best move
+-- Handle different flags
+handleFlags :: [Flag] -> IO ()
+handleFlags opts
+  | Winner `elem` opts = do
+      putStrLn "Enter the game file name for analysis: "
+      hFlush stdout
+      gameFile <- getLine
+      game <- loadGame gameFile
+      putBestMove game
+  | otherwise = putStrLn $ "Flags provided: " ++ show opts-- Other functions to load the game and output the best move
 writeGame :: Game -> FilePath -> IO ()
 writeGame game file = do
     writeFile file (showGame game)
