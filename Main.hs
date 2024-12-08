@@ -11,6 +11,7 @@ import Gambit
       whoMightWin1,
       whoMightWin2,
       whoWillWin,
+      getWinner,
       Game,
       Move,
       Side(White, Black),
@@ -24,7 +25,7 @@ import Test.QuickCheck (Result(numDiscarded))
 
 -- Default depth for move calculation
 depth :: Int
-depth = 4
+depth = 3
 
 -- Define the options
 data Flag = Help | Winner | Depth Int | Move String | Verbose | Interactive | Unknown
@@ -37,7 +38,7 @@ options =
     Option ['d'] ["depth"] (ReqArg (Depth . read) "<num>") "Specify a cutoff depth for move calculation",
     Option ['m'] ["move"] (ReqArg Move "<move>") "Make a move and display the resulting board. The move format is two squares with quotes, ex. \"(a4,b7)\"",
     Option ['v'] ["verbose"] (NoArg Verbose) "Display move quality (win, lose, tie, or rating)",
-    Option ['i'] ["interactive"] (NoArg Interactive) "Play a new game interactively"
+    Option ['i'] ["interactive"] (NoArg Interactive) "Play a new game interactively (You don't need to provide a game file as an arg for this)"
   ]
 
 -- Simplified usage function
@@ -58,7 +59,9 @@ main = do
       else handleFlags opts nonOpts
 -- Handle different flags
 handleFlags :: [Flag] -> [String] -> IO ()
-handleFlags _ [] = putStrLn "No game file provided..."
+handleFlags opts [] 
+  | (Interactive `elem` opts) = handleFlags opts ["initialGame.txt"]
+  | otherwise                 = putStrLn "No game file provided..."
 
 
 handleFlags opts (gameFile:_)
@@ -88,8 +91,22 @@ handleFlags opts (gameFile:_)
       return ()
 
   | (Interactive `elem` opts) = do
-    putStrLn ("Placeholder for -i flag")
-
+    let inputDepth = checkForDepth opts
+    putStrLn "Let's play a game. Would you like to: \n<w> Play a new game as white\n<b> Play a new game as black\n<FILENAME> Play a saved game from a txt file in this directory\n"
+    hFlush stdout
+    answer <- getLine
+    case answer of 
+      "w" -> do 
+        game <- loadGame "initialGame.txt"
+        startLoop game inputDepth
+      "b" -> do
+        game <- loadGame "initialGame.txt"
+        let botMove = snd (whoMightWin2 game (if isNothing inputDepth then depth else fromJust inputDepth))
+        case botMove of                          --it's impossible for this to be Nothing on the first move, so I'd argue using fromJust is ok
+          Just move -> startLoop (makeMove game (fromJust botMove)) inputDepth
+      gameFile -> do
+        game <- loadGame gameFile
+        startLoop game inputDepth
 
   | isJust (checkForMove opts) = do --CHECK FOR MOVE FLAG
     game@(_,playerColor,_,_) <- loadGame gameFile
@@ -162,8 +179,49 @@ handleFlags opts (gameFile:_) = do
  -- | otherwise = putStrLn $ "Flags provided: " ++ show opts-- Other functions to load the game and output the best move
 
 --checks for the string arg of the Move constructor-}
+startLoop :: Game -> Maybe Int -> IO ()
+startLoop game Nothing = gameLoop game depth
+startLoop game (Just botDepth) = gameLoop game botDepth
 
+--                  optional depth parameter
+gameLoop :: Game -> Int -> IO ()
+gameLoop game@(_,playerColor,_,_) botDepth = do
 
+  putStrLn (displayBoard game playerColor)
+  --check if the enemy won last turn
+  let maybeWinner = getWinner game
+  case maybeWinner of 
+    Just (Win color) -> if color == playerColor then putStrLn "You win! Well played." else putStrLn "Looks like I win. Good game!"
+    Just Tie -> putStrLn "The game is a tie. Good game!"
+    Nothing -> do
+
+      putStrLn "What is your move? \n"
+      hFlush stdout
+      moveStr <- getLine
+      let move = parseMove moveStr game
+
+      case move of
+        Nothing -> do
+          putStrLn "That move is invalid/illegal. Remember, the input format looks like (a3,b4). Try again: \n"
+          gameLoop game botDepth
+        Just m -> do
+          --the game state after the player has moved
+          let withPlayerMove = makeMove game m
+          --print the board after the player has moved
+          putStrLn (displayBoard withPlayerMove playerColor)
+
+          --Now, it's the bot's turn to move
+          let botMove = snd (whoMightWin2 withPlayerMove botDepth)
+          case botMove of --if the bot couldn't make a move, the game should be over, so we check who won.
+            Nothing -> do 
+              let maybeWinner = getWinner withPlayerMove
+              case maybeWinner of 
+                Just (Win color) -> if color == playerColor then putStrLn "You win! Well played." else putStrLn "Looks like I win. Good game!"
+                Just Tie -> putStrLn "The game is a tie. Good game!"
+            Just bMove -> do
+              let withBotMove = makeMove withPlayerMove bMove
+              gameLoop withBotMove botDepth
+              
 
 
 boardEval :: Game -> Maybe Int -> String
