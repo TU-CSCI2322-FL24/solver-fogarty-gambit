@@ -52,6 +52,14 @@ handleFlags [] (gameFile:_) = do  --story 21
   putGoodMove game Nothing
 
 
+handleFlags opts (gameFile:_) 
+  | (Winner `elem` opts) = do
+    let isVerbose = Verbose `elem` opts
+    case isVerbose of 
+      True -> --idk
+      False -> putGoodMove game Nothing
+    
+
 --opts are the flags, nonOpts is a list that should just include the filename
 handleFlags opts (gameFile:_) = do
   game@(_,playerColor,_,_) <- loadGame gameFile
@@ -70,6 +78,8 @@ handleFlags opts (gameFile:_) = do
             putStrLn (displayBoard newState playerColor)
             putStrLn (boardEval newState inputDepth)
           else putStrLn (showGame newState)
+      Nothing -> putStrLn "That move is invalid! Remember, the imput format looks like (a3,b4)"
+    Nothing -> 
  -- | Move movestr
  -- | otherwise = putStrLn $ "Flags provided: " ++ show opts-- Other functions to load the game and output the best move
 
