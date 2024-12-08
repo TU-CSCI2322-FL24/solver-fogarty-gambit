@@ -8,7 +8,8 @@ import Gambit
       readGame,
       showGame,
       showMove,
-      whoMightWin,
+      whoMightWin1,
+      whoMightWin2,
       whoWillWin,
       Game,
       Move,
@@ -74,25 +75,25 @@ handleFlags opts (gameFile:_)
 
     game@(_,playerColor,_,_) <- loadGame gameFile
     let isVerbose = Verbose `elem` opts
-    case isVerbose of
-      True -> do --print the best move and the resulting board (this function probably won't run)
-        move <- putBestMove game
-        putStrLn (displayBoard (makeMove game move) playerColor)
-
-      False -> do
+    if isVerbose then do --print the best move and the resulting board (this function probably won't run)
+      move <- putBestMove game
+      case move of
+        Just m -> putStrLn (displayBoard (makeMove game m) playerColor)
+        Nothing -> return () 
+      else do
         --Trash is useless, I'm just using it to get the side effects of putBestMove
-        _ <- putBestMove game
+        trash <- putBestMove game
         return ()
 
   | (Interactive `elem` opts) = do
-    putStrLn("Placeholder for -i flag")
+    putStrLn ("Placeholder for -i flag")
 
 
   | isJust (checkForMove opts) = do --CHECK FOR MOVE FLAG
     game@(_,playerColor,_,_) <- loadGame gameFile
     let isVerbose = Verbose `elem` opts
     let inputDepth = checkForDepth opts
-    case checkForMove opts of 
+    case checkForMove opts of
       Just str -> case parseMove str game of
         Just move -> do --if the -m flag is passed and a valid move is given, play it.
           let newState = makeMove game move
@@ -105,7 +106,7 @@ handleFlags opts (gameFile:_)
       Nothing -> putStrLn "This will never happen, I'm using this case expression to pattern match"
 
   --if we make it to this case, there is no move flag or winner flag, or interactive flag. This is the default behavior, story 21
-  | otherwise = do 
+  | otherwise = do
     game@(_,playerColor,_,_) <- loadGame gameFile
     let isVerbose = Verbose `elem` opts
     let inputDepth = checkForDepth opts
@@ -114,9 +115,12 @@ handleFlags opts (gameFile:_)
       putStrLn (displayBoard game playerColor)
 
     move <- putGoodMove game inputDepth
-    when (isVerbose) $ do
-      let newState = makeMove game move
-      putStrLn (displayBoard newState playerColor)
+    case move of --check if the move is valid, if so, then we can use it if the verbose flag was passed
+      Just m ->
+        when (isVerbose) $ do
+        let newState = makeMove game m
+        putStrLn (displayBoard newState playerColor)
+      Nothing -> return ()
 
 {-
   | isJust (checkForDepth opts) = do -- Check for depth flag
@@ -162,7 +166,7 @@ handleFlags opts (gameFile:_) = do
 
 boardEval :: Game -> Maybe Int -> String
 boardEval game (Just depth') = let
-  ratingNum = fst (whoMightWin game depth')
+  ratingNum = fst (whoMightWin2 game depth')
   in case ratingNum of
     100 -> "You are currently expected to win."
     -100 -> "You are currently expected to lose."
@@ -190,7 +194,7 @@ loadGame file = do
   gameStr <- readFile file
   return (readGame gameStr)
 
-putBestMove :: Game -> IO Move
+putBestMove :: Game -> IO (Maybe Move)
 putBestMove game = do --print the outcome of whoWillWin here too
   let move = bestMove game
   let winner = whoWillWin game
@@ -199,8 +203,14 @@ putBestMove game = do --print the outcome of whoWillWin here too
         | winner == (Win White) = "a win for white."
         | winner == (Win Black) = "a win for black."
 
-  putStrLn ("The best move is " ++ showMove move ++ ". The current expected outcome is " ++ winStr)
-  return move
+  case move of
+    Just m -> do
+      putStrLn ("The best move is " ++ showMove m ++ ". The current expected outcome is " ++ winStr)
+      return (Just m)
+    Nothing -> do
+      putStrLn "The game is over, no move can be played."
+      return Nothing
+
 
 {-
 putBestMove game = do --print the outcome of whoWillWin here too
@@ -212,26 +222,31 @@ putBestMove game = do --print the outcome of whoWillWin here too
     (Win Black) -> "a win for black."
     Tie -> "a tie." -}
 
-putGoodMove :: Game -> Maybe Int -> IO Move
+putGoodMove :: Game -> Maybe Int -> IO (Maybe Move)
 putGoodMove game maybeDepth = do --print the outcome of whoWillWin here too
   case maybeDepth of
     Nothing -> do
-      let (eval, maybeMove) = whoMightWin game depth
+      let (eval, maybeMove) = whoMightWin2 game depth
       case maybeMove of
         Just move -> do
           putStrLn ("A good move is " ++ showMove move ++ ". The game rating is " ++ show eval ++ " out of 100")
-          return move
+          return (Just move)
 
-        --Nothing -> putStrLn "No good move was found."
+        Nothing -> do
+          putStrLn "The game is over, no move can be played."
+          return Nothing
 
     Just depthNum -> do
-      let (eval, maybeMove) = whoMightWin game depthNum
+      let (eval, maybeMove) = whoMightWin2 game depthNum
       case maybeMove of
-        Just move -> do 
+        Just move -> do
           putStrLn ("A good move is " ++ showMove move ++ ". The game rating is " ++ show eval ++ " out of 100")
-          return move
+          return (Just move)
 
-        --Nothing -> putStrLn "No good move was found."
+        Nothing -> do
+          putStrLn "The game is over, no move can be played."
+          return Nothing
+
 
 {-
 maxDepth = 4

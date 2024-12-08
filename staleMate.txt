@@ -1,0 +1,7 @@
+3
+Black
+C 5 W PF
+E 4 W B
+E 5 W Q
+G 3 W KT
+H 6 B KT
