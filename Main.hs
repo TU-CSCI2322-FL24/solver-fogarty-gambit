@@ -5,10 +5,11 @@ import System.IO
 import System.Environment
 import Data.Maybe
 import System.Console.GetOpt
+import Control.Monad (when)
 
 -- Default depth for move calculation
 depth :: Int
-depth = 4
+depth = 3
 
 -- Define the options
 data Flag = Help | Winner | Depth Int | Move String | Verbose | Interactive | Unknown
@@ -49,30 +50,58 @@ handleFlags [] (gameFile:_) = do  --story 21
   game <- loadGame gameFile
   putGoodMove game
 
+
 --opts are the flags, nonOpts is a list that should just include the filename
-handleFlags opts (gameFile:_)
-  | Winner `elem` opts = do
-      game <- loadGame gameFile
-      putBestMove game
-  | otherwise = putStrLn $ "Flags provided: " ++ show opts-- Other functions to load the game and output the best move
+handleFlags opts (gameFile:_) = do
+  game <- loadGame gameFile
+  let isVerbose = Verbose `elem` opts
+
+  when (Winner `elem` opts) $ do
+    putBestMove game
+
+  case checkForMove opts of 
+    Just str -> case parseMove str game of
+      Just move -> do --if the -m flag is passed and a valid move is given, play it.
+        let newState = makeMove game move
+        if isVerbose
+          then 
+
+
+ -- | Move movestr
+ -- | otherwise = putStrLn $ "Flags provided: " ++ show opts-- Other functions to load the game and output the best move
+
+--checks for the string arg of the Move constructor
+checkForMove :: [Flag] -> Maybe String
+checkForMove [] = Nothing
+checkForMove ((Move str):xs) = Just str
+checkForMove (x:xs) = checkForMove xs
 
 writeGame :: Game -> FilePath -> IO ()
 writeGame game file = do
-    writeFile file (showGame game)
+  writeFile file (showGame game)
 
 loadGame :: FilePath -> IO Game
 loadGame file = do
-    gameStr <- readFile file
-    return (readGame gameStr)
+  gameStr <- readFile file
+  return (readGame gameStr)
 
 putBestMove :: Game -> IO ()
 putBestMove game = do --print the outcome of whoWillWin here too
-    case bestMove game of
-        move -> putStrLn (showMove move ++ ". The expected outcome is " ++ case whoWillWin game of
-            (Win White) -> "a win for white."
-            (Win Black) -> "a win for black."
-            Tie -> "a tie." 
-            )
+  let move = bestMove game
+  let winner = whoWillWin game
+  putStrLn ("The best move is " ++ showMove move ++ ". The expected outcome is " ++ case winner of
+    (Win White) -> "a win for white."
+    (Win Black) -> "a win for black."
+    Tie -> "a tie." 
+    )
+
+putGoodMove :: Game -> IO ()
+putGoodMove game = do --print the outcome of whoWillWin here too
+  let (eval, maybeMove) = whoMightWin game depth
+  case maybeMove of
+    Just move -> putStrLn ("A good move is " ++ showMove move ++ ". The game rating is " ++ show eval ++ " out of 100")
+
+    Nothing -> putStrLn "No good move was found."
 
 {-
 maxDepth = 4

@@ -67,6 +67,32 @@ showPieceType Bishop = "B"
 showPieceType Queen = "Q"
 
 
+
+validMove :: Game -> Position -> Position -> Bool
+validMove game startPos endPos 
+    | validPos startPos && validPos endPos = 
+        case pieceAt startPos game of 
+            Just piece -> (piece, endPos) `elem` allLegalMoves game
+            Nothing -> False
+
+
+pieceAt :: Position -> Game -> Maybe Piece
+pieceAt pos (_,_,pieces,_)
+    | validPos pos = let
+        pieceLst = [(piecePos,x,y) | (piecePos, x, y) <- pieces, pos == piecePos]
+        in if null pieceLst then Nothing else Just (head pieceLst)
+    | otherwise =  Nothing --throw an error here?
+
+parseMove :: String -> Game -> Maybe Move
+--        pattern matching to check for a correctly-formatted arg
+parseMove ['(',startChar,startNum,',',endChar,endNum,')'] game
+    | validPos (toUpper startChar, read [startNum]) && validPos (toUpper endChar, read [endNum]) = 
+        case pieceAt (toUpper startChar, read [startNum]) game of 
+            Just piece -> Just (piece, (toUpper endChar, read [endNum]))
+            Nothing -> Nothing
+parseMove _ _ = Nothing --throw an error here?
+
+
 parseSide :: String -> Maybe Side
 parseSide "White" = Just White
 parseSide "W" = Just White
