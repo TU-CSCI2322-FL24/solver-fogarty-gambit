@@ -48,7 +48,7 @@ handleFlags _ [] = putStrLn "No game file provided..."
 
 handleFlags [] (gameFile:_) = do  --story 21
   game <- loadGame gameFile
-  putGoodMove game
+  putGoodMove game Nothing
 
 
 --opts are the flags, nonOpts is a list that should just include the filename
@@ -57,7 +57,7 @@ handleFlags opts (gameFile:_) = do
   let isVerbose = Verbose `elem` opts
 
   when (Winner `elem` opts) $ do
-    putBestMove game
+    putGoodMove game Nothing
 
   case checkForMove opts of 
     Just str -> case parseMove str game of
@@ -66,6 +66,7 @@ handleFlags opts (gameFile:_) = do
         if isVerbose
           then do 
             putStrLn (displayBoard newState playerColor)
+
             writeGame newState gameFile
           else writeGame newState gameFile
 
@@ -97,13 +98,22 @@ putBestMove game = do --print the outcome of whoWillWin here too
     Tie -> "a tie." 
     )
 
-putGoodMove :: Game -> IO ()
-putGoodMove game = do --print the outcome of whoWillWin here too
-  let (eval, maybeMove) = whoMightWin game depth
-  case maybeMove of
-    Just move -> putStrLn ("A good move is " ++ showMove move ++ ". The game rating is " ++ show eval ++ " out of 100")
+putGoodMove :: Game -> Maybe Int -> IO ()
+putGoodMove game maybeDepth = do --print the outcome of whoWillWin here too
+  case maybeDepth of
+    Nothing -> do
+      let (eval, maybeMove) = whoMightWin game depth
+      case maybeMove of
+        Just move -> putStrLn ("A good move is " ++ showMove move ++ ". The game rating is " ++ show eval ++ " out of 100")
 
-    Nothing -> putStrLn "No good move was found."
+        Nothing -> putStrLn "No good move was found."
+
+    Just depthNum -> do
+      let (eval, maybeMove) = whoMightWin game depthNum
+      case maybeMove of
+        Just move -> putStrLn ("A good move is " ++ showMove move ++ ". The game rating is " ++ show eval ++ " out of 100")
+
+        Nothing -> putStrLn "No good move was found."
 
 {-
 maxDepth = 4
