@@ -6,6 +6,7 @@ import System.Environment
 import Data.Maybe
 import System.Console.GetOpt
 import Control.Monad (when)
+import Test.QuickCheck (Result(numDiscarded))
 
 -- Default depth for move calculation
 depth :: Int
@@ -20,7 +21,7 @@ options =
   [ Option ['h'] ["help"] (NoArg Help) "Display this help message",
     Option ['w'] ["winner"] (NoArg Winner) "Show the best move using exhaustive search",
     Option ['d'] ["depth"] (ReqArg (Depth . read) "<num>") "Specify a cutoff depth for move calculation",
-    Option ['m'] ["move"] (ReqArg Move "<move>") "Make a move and display the resulting board",
+    Option ['m'] ["move"] (ReqArg Move "<move>") "Make a move and display the resulting board. The move format is two squares, ex. (a4,b7)",
     Option ['v'] ["verbose"] (NoArg Verbose) "Display move quality (win, lose, tie, or rating)",
     Option ['i'] ["interactive"] (NoArg Interactive) "Play a new game interactively"
   ]
@@ -67,14 +68,15 @@ handleFlags opts (gameFile:_) = do
         if isVerbose
           then do 
             putStrLn (displayBoard newState playerColor)
-            putStrLn boardEval (if )
-            writeGame newState gameFile
-          else writeGame newState gameFile
-
+            putStrLn (boardEval newState inputDepth)
+          else putStrLn (showGame newState)
  -- | Move movestr
  -- | otherwise = putStrLn $ "Flags provided: " ++ show opts-- Other functions to load the game and output the best move
 
 --checks for the string arg of the Move constructor
+
+
+
 
 boardEval :: Game -> Maybe Int -> String
 boardEval game (Just depth') = let 
@@ -93,9 +95,9 @@ checkForMove ((Move str):xs) = Just str
 checkForMove (x:xs) = checkForMove xs
 
 checkForDepth :: [Flag] -> Maybe Int
-checkForMove [] = Nothing
-checkForMove ((Depth numStr):xs) = Just read numStr
-checkForMove (x:xs) = checkForMove xs
+checkForDepth [] = Nothing
+checkForDepth ((Depth num):xs) = Just num
+checkForDepth (x:xs) = checkForDepth xs
 
 writeGame :: Game -> FilePath -> IO ()
 writeGame game file = do
