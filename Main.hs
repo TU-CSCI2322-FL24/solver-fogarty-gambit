@@ -76,14 +76,16 @@ handleFlags opts (gameFile:_)
     game@(_,playerColor,_,_) <- loadGame gameFile
     let isVerbose = Verbose `elem` opts
     if isVerbose then do --print the best move and the resulting board (this function probably won't run)
+      putStrLn (displayBoard game playerColor)
       move <- putBestMove game
       case move of
         Just m -> putStrLn (displayBoard (makeMove game m) playerColor)
-        Nothing -> return () 
-      else do
-        --Trash is useless, I'm just using it to get the side effects of putBestMove
-        trash <- putBestMove game
-        return ()
+        Nothing -> return ()
+
+    else do
+      --Trash is useless, I'm just using it to get the side effects of putBestMove
+      trash <- putBestMove game
+      return ()
 
   | (Interactive `elem` opts) = do
     putStrLn ("Placeholder for -i flag")
@@ -111,7 +113,7 @@ handleFlags opts (gameFile:_)
     let isVerbose = Verbose `elem` opts
     let inputDepth = checkForDepth opts
 
-    when (isVerbose) $ do
+    when isVerbose $ do
       putStrLn (displayBoard game playerColor)
 
     move <- putGoodMove game inputDepth
