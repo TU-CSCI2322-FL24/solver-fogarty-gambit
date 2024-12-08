@@ -34,7 +34,7 @@ options =
   [ Option ['h'] ["help"] (NoArg Help) "Display this help message",
     Option ['w'] ["winner"] (NoArg Winner) "Show the best move using exhaustive search",
     Option ['d'] ["depth"] (ReqArg (Depth . read) "<num>") "Specify a cutoff depth for move calculation",
-    Option ['m'] ["move"] (ReqArg Move "<move>") "Make a move and display the resulting board. The move format is two squares, ex. (a4,b7)",
+    Option ['m'] ["move"] (ReqArg Move "<move>") "Make a move and display the resulting board. The move format is two squares with quotes, ex. \"(a4,b7)\"",
     Option ['v'] ["verbose"] (NoArg Verbose) "Display move quality (win, lose, tie, or rating)",
     Option ['i'] ["interactive"] (NoArg Interactive) "Play a new game interactively"
   ]
@@ -47,7 +47,7 @@ usage prog = putStrLn $ usageInfo ("Usage: " ++ prog ++ " [options]") options
 main :: IO ()
 main = do
   args <- getArgs
-  let (opts, nonOpts, errs) = getOpt RequireOrder options args
+  let (opts, nonOpts, errs) = getOpt Permute options args
   if not (null errs)
     then do
       mapM_ putStrLn errs
@@ -55,7 +55,6 @@ main = do
     else if Help `elem` opts
       then usage "gambit"
       else handleFlags opts nonOpts
-
 -- Handle different flags
 handleFlags :: [Flag] -> [String] -> IO ()
 handleFlags _ [] = putStrLn "No game file provided..."
@@ -82,8 +81,11 @@ handleFlags opts (gameFile:_)
 
       False -> do
         --Trash is useless, I'm just using it to get the side effects of putBestMove
-        trash <- putBestMove game
-        putStr ""
+        _ <- putBestMove game
+        return ()
+
+  | (Interactive `elem` opts) = do
+    putStrLn("Placeholder for -i flag")
 
 
   | isJust (checkForMove opts) = do --CHECK FOR MOVE FLAG
@@ -99,11 +101,8 @@ handleFlags opts (gameFile:_)
               putStrLn (displayBoard newState playerColor)
               putStrLn (boardEval newState inputDepth)
             else putStrLn ("Here is the updated game with your move. Yeah, you probably meant to use the -v flag with this. \n" ++ showGame newState)
-        Nothing -> putStrLn ("That move is invalid! Remember, the imput format looks like (a3,b4). Your input was " ++ str)
+        Nothing -> putStrLn "That move is invalid! Remember, the imput format looks like \"(a3,b4)\""
       Nothing -> putStrLn "This will never happen, I'm using this case expression to pattern match"
-
-  --IMPLEMENT INTERACTIVE HERE
-  | (Interactive `elem` opts) = undefined
 
   --if we make it to this case, there is no move flag or winner flag, or interactive flag. This is the default behavior, story 21
   | otherwise = do 
@@ -119,6 +118,29 @@ handleFlags opts (gameFile:_)
       let newState = makeMove game move
       putStrLn (displayBoard newState playerColor)
 
+{-
+  | isJust (checkForDepth opts) = do -- Check for depth flag
+    game@(_, playerColor, _, _) <- loadGame gameFile -- Load the game
+    let inputDepth = checkForDepth opts
+    let isVerbose = Verbose `elem` opts
+    case isVerbose of
+      True -> do
+        newGame <- putGoodMove game inputDepth  -- Use the specified depth
+        putStrLn $ displayBoard newGame playerColor -- Display the updated game board
+      False -> do
+        _ <- putGoodMove game inputDepth  -- Ignore the result
+        return () --trash return
+
+  | (Verbose `elem` opts) = do -- Check for the verbose flag
+    game@(_, playerColor, _, _) <- loadGame gameFile -- Load the game
+    newGame <- putGoodMove game Nothing 
+    putStrLn $ displayBoard newGame playerColor -- Display the updated game board
+
+  | otherwise = do -- base case
+    game <- loadGame gameFile
+    _ <- putGoodMove game Nothing
+    return () -- trash return-}
+{-
 --opts are the flags, nonOpts is a list that should just include the filename
 {-
 handleFlags opts (gameFile:_) = do
@@ -128,7 +150,7 @@ handleFlags opts (gameFile:_) = do
 
   when (Winner `elem` opts) $ do
     putGoodMove game Nothing
-
+-}
 
  -- | Move movestr
  -- | otherwise = putStrLn $ "Flags provided: " ++ show opts-- Other functions to load the game and output the best move
