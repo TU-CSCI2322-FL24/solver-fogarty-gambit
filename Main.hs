@@ -21,7 +21,7 @@ options =
   [ Option ['h'] ["help"] (NoArg Help) "Display this help message",
     Option ['w'] ["winner"] (NoArg Winner) "Show the best move using exhaustive search",
     Option ['d'] ["depth"] (ReqArg (Depth . read) "<num>") "Specify a cutoff depth for move calculation",
-    Option ['m'] ["move"] (ReqArg Move "<move>") "Make a move and display the resulting board. The move format is two squares, ex. (a4,b7)",
+    Option ['m'] ["move"] (ReqArg Move "<move>") "Make a move and display the resulting board. The move format is two squares with quotes, ex. \"(a4,b7)\"",
     Option ['v'] ["verbose"] (NoArg Verbose) "Display move quality (win, lose, tie, or rating)",
     Option ['i'] ["interactive"] (NoArg Interactive) "Play a new game interactively"
   ]
@@ -76,7 +76,7 @@ handleFlags opts (gameFile:_)
         return ()
 
   | (Interactive `elem` opts) = do
-	  putStrLn("Placeholder for -i flag")
+    putStrLn("Placeholder for -i flag")
 
 
 
@@ -94,7 +94,7 @@ handleFlags opts (gameFile:_)
               when (isJust inputDepth) $ do
                 putStrLn (boardEval newState inputDepth)
             else putStrLn ("Here is the updated game with your move. Yeah, you probably meant to use the -v flag with this. \n" ++ showGame newState)
-        Nothing -> putStrLn "That move is invalid! Remember, the imput format looks like (a3,b4)"
+        Nothing -> putStrLn "That move is invalid! Remember, the imput format looks like \"(a3,b4)\""
       Nothing -> putStrLn "This will never happen, I'm using this case expression to pattern match"
 
 
