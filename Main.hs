@@ -53,7 +53,7 @@ handleFlags [] (gameFile:_) = do  --story 21
 
 --opts are the flags, nonOpts is a list that should just include the filename
 handleFlags opts (gameFile:_) = do
-  game <- loadGame gameFile
+  game@(_,playerColor,_,_) <- loadGame gameFile
   let isVerbose = Verbose `elem` opts
 
   when (Winner `elem` opts) $ do
@@ -64,8 +64,10 @@ handleFlags opts (gameFile:_) = do
       Just move -> do --if the -m flag is passed and a valid move is given, play it.
         let newState = makeMove game move
         if isVerbose
-          then 
-
+          then do 
+            putStrLn (displayBoard newState playerColor)
+            writeGame newState gameFile
+          else writeGame newState gameFile
 
  -- | Move movestr
  -- | otherwise = putStrLn $ "Flags provided: " ++ show opts-- Other functions to load the game and output the best move
