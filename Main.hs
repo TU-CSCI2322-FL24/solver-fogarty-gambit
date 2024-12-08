@@ -55,6 +55,7 @@ handleFlags [] (gameFile:_) = do  --story 21
 handleFlags opts (gameFile:_) = do
   game@(_,playerColor,_,_) <- loadGame gameFile
   let isVerbose = Verbose `elem` opts
+  let inputDepth = checkForDepth opts
 
   when (Winner `elem` opts) $ do
     putGoodMove game Nothing
@@ -66,7 +67,7 @@ handleFlags opts (gameFile:_) = do
         if isVerbose
           then do 
             putStrLn (displayBoard newState playerColor)
-
+            putStrLn boardEval (if )
             writeGame newState gameFile
           else writeGame newState gameFile
 
@@ -74,9 +75,26 @@ handleFlags opts (gameFile:_) = do
  -- | otherwise = putStrLn $ "Flags provided: " ++ show opts-- Other functions to load the game and output the best move
 
 --checks for the string arg of the Move constructor
+
+boardEval :: Game -> Maybe Int -> String
+boardEval game (Just depth') = let 
+  ratingNum = fst (whoMightWin game depth')
+  in case ratingNum of 
+    100 -> "You are currently expected to win."
+    -100 -> "You are currently expected to lose."
+    num -> "It is unclear if a win is forced or not. The current evaluation is " ++ show num
+
+boardEval game Nothing = boardEval game (Just depth)
+
+
 checkForMove :: [Flag] -> Maybe String
 checkForMove [] = Nothing
 checkForMove ((Move str):xs) = Just str
+checkForMove (x:xs) = checkForMove xs
+
+checkForDepth :: [Flag] -> Maybe Int
+checkForMove [] = Nothing
+checkForMove ((Depth numStr):xs) = Just read numStr
 checkForMove (x:xs) = checkForMove xs
 
 writeGame :: Game -> FilePath -> IO ()
@@ -92,7 +110,7 @@ putBestMove :: Game -> IO ()
 putBestMove game = do --print the outcome of whoWillWin here too
   let move = bestMove game
   let winner = whoWillWin game
-  putStrLn ("The best move is " ++ showMove move ++ ". The expected outcome is " ++ case winner of
+  putStrLn ("The best move is " ++ showMove move ++ ". The current expected outcome is " ++ case winner of
     (Win White) -> "a win for white."
     (Win Black) -> "a win for black."
     Tie -> "a tie." 
