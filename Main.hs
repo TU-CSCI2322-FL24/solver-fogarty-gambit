@@ -63,9 +63,7 @@ handleFlags opts []
   | (Interactive `elem` opts) = handleFlags opts ["initialGame.txt"]
   | otherwise                 = putStrLn "No game file provided..."
 
-
 handleFlags opts (gameFile:_)
-
   | (Winner `elem` opts) = do --CHECK FOR WINNER FLAG
     --I would've used a case expression here to avoid isJust, but 
     -- that would've made the indentation uglier
@@ -84,13 +82,13 @@ handleFlags opts (gameFile:_)
       case move of
         Just m -> putStrLn (displayBoard (makeMove game m) playerColor)
         Nothing -> return ()
-
     else do
       --Trash is useless, I'm just using it to get the side effects of putBestMove
       trash <- putBestMove game
       return ()
 
-  | (Interactive `elem` opts) = do
+
+  | (Interactive `elem` opts) = do  --CHECK FOR INTERACTIVE FLAG
     let inputDepth = checkForDepth opts
     putStrLn "Let's play a game. Would you like to: \n<w> Play a new game as white\n<b> Play a new game as black\n<FILENAME> Play a saved game from a txt file in this directory\n"
     hFlush stdout
@@ -108,6 +106,7 @@ handleFlags opts (gameFile:_)
         game <- loadGame gameFile
         startLoop game inputDepth
 
+
   | isJust (checkForMove opts) = do --CHECK FOR MOVE FLAG
     game@(_,playerColor,_,_) <- loadGame gameFile
     let isVerbose = Verbose `elem` opts
@@ -124,6 +123,7 @@ handleFlags opts (gameFile:_)
         Nothing -> putStrLn "That move is invalid! Remember, the imput format looks like \"(a3,b4)\""
       Nothing -> putStrLn "This will never happen, I'm using this case expression to pattern match"
 
+
   --if we make it to this case, there is no move flag or winner flag, or interactive flag. This is the default behavior, story 21
   | otherwise = do
     game@(_,playerColor,_,_) <- loadGame gameFile
@@ -133,50 +133,23 @@ handleFlags opts (gameFile:_)
     when isVerbose $ do
       putStrLn (displayBoard game playerColor)
 
-    move <- putGoodMove game inputDepth
+    (rating, move) <- getGoodMove game inputDepth
     case move of --check if the move is valid, if so, then we can use it if the verbose flag was passed
-      Just m ->
-        when (isVerbose) $ do
-        let newState = makeMove game m
-        putStrLn (displayBoard newState playerColor)
-      Nothing -> return ()
+      Just m -> do
+        putStrLn ("A good move is " ++ showMove m)
+        when isVerbose $ do
+          putStrLn ("The current rating is " ++ show rating ++ " / 100")
+          let newState = makeMove game m
+          putStrLn (displayBoard newState playerColor)
+      Nothing -> do
+        putStrLn "No move can be played, the game is over."
+        when isVerbose $ do
+          let winnerStr 
+                | rating == 100 = "a win for you!"
+                | rating == -100 = "a loss..."
+                | otherwise = "a tie."
+          putStrLn ("The result is " ++ winnerStr)
 
-{-
-  | isJust (checkForDepth opts) = do -- Check for depth flag
-    game@(_, playerColor, _, _) <- loadGame gameFile -- Load the game
-    let inputDepth = checkForDepth opts
-    let isVerbose = Verbose `elem` opts
-    case isVerbose of
-      True -> do
-        newGame <- putGoodMove game inputDepth  -- Use the specified depth
-        putStrLn $ displayBoard newGame playerColor -- Display the updated game board
-      False -> do
-        _ <- putGoodMove game inputDepth  -- Ignore the result
-        return () --trash return
-
-  | (Verbose `elem` opts) = do -- Check for the verbose flag
-    game@(_, playerColor, _, _) <- loadGame gameFile -- Load the game
-    newGame <- putGoodMove game Nothing 
-    putStrLn $ displayBoard newGame playerColor -- Display the updated game board
-
-  | otherwise = do -- base case
-    game <- loadGame gameFile
-    _ <- putGoodMove game Nothing
-    return () -- trash return-}
-{-
---opts are the flags, nonOpts is a list that should just include the filename
-{-
-handleFlags opts (gameFile:_) = do
-  game@(_,playerColor,_,_) <- loadGame gameFile
-  let isVerbose = Verbose `elem` opts
-  let inputDepth = checkForDepth opts
-
-  when (Winner `elem` opts) $ do
-    putGoodMove game Nothing
--}
-
- -- | Move movestr
- -- | otherwise = putStrLn $ "Flags provided: " ++ show opts-- Other functions to load the game and output the best move
 
 --checks for the string arg of the Move constructor-}
 startLoop :: Game -> Maybe Int -> IO ()
@@ -281,6 +254,16 @@ putBestMove game = do --print the outcome of whoWillWin here too
     (Win White) -> "a win for white."
     (Win Black) -> "a win for black."
     Tie -> "a tie." -}
+
+getGoodMove :: Game -> Maybe Int -> IO (Int, Maybe Move)
+getGoodMove game maybeDepth = do
+  case maybeDepth of 
+    Nothing -> do 
+      return (whoMightWin2 game depth)
+    Just d -> do
+      return (whoMightWin2 game d)
+
+
 
 putGoodMove :: Game -> Maybe Int -> IO (Maybe Move)
 putGoodMove game maybeDepth = do --print the outcome of whoWillWin here too
