@@ -1,4 +1,4 @@
-4
+3
 White
 F 6 W PF
 G 2 W PF

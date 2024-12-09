@@ -21,7 +21,6 @@ import System.Environment
 import Data.Maybe
 import System.Console.GetOpt
 import Control.Monad (when)
-import Test.QuickCheck (Result(numDiscarded))
 
 -- Default depth for move calculation
 depth :: Int
