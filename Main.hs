@@ -15,7 +15,7 @@ import Gambit
       Game,
       Move,
       Side(White, Black),
-      Winner(..) )
+      Winner(..), allLegalMoves )
 import System.IO
 import System.Environment
 import Data.Maybe
@@ -176,6 +176,7 @@ gameLoop game@(_,playerColor,_,_) botDepth = do
       case move of
         Nothing -> do
           putStrLn "That move is invalid/illegal. Remember, the input format looks like \"(a3,b4)\" with the quotes. Try again: \n"
+          printMoves (allLegalMoves game)
           gameLoop game botDepth
         Just m -> do
           --the game state after the player has moved
@@ -207,6 +208,11 @@ boardEval game (Just depth') = let
 
 boardEval game Nothing = boardEval game (Just depth)
 
+printMoves :: [Move] -> IO ()
+printMoves [] = return ()
+printMoves (x:xs) = do
+  putStrLn (showMove x)
+  printMoves xs
 
 checkForMove :: [Flag] -> Maybe String
 checkForMove [] = Nothing

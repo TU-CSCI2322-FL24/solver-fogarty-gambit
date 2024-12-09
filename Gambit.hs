@@ -86,7 +86,7 @@ pieceAt pos (_,_,pieces,_)
 parseMove :: String -> Game -> Maybe Move
 --        pattern matching to check for a correctly-formatted arg
 parseMove ['(',startChar,startNum,',',endChar,endNum,')'] game
-    | validPos (toUpper startChar, read [startNum]) && validPos (toUpper endChar, read [endNum]) = 
+    | validPos (toUpper startChar, read [startNum]) && validPos (toUpper endChar, read [endNum]) && validMove game (toUpper startChar, read [startNum]) (toUpper endChar, read [endNum]) =
         case pieceAt (toUpper startChar, read [startNum]) game of 
             Just piece -> Just (piece, (toUpper endChar, read [endNum]))
             Nothing -> Nothing
