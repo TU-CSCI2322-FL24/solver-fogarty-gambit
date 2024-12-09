@@ -102,7 +102,7 @@ parseMove _ _ = Nothing-}
 
 parseMove :: String -> Game -> Maybe Game
 --        pattern matching to check for a correctly-formatted arg
-parseMove ['(',startChar,startNum,',',endChar,endNum,')'] game
+parseMove [startChar,startNum,',',endChar,endNum] game
     | validPos (toUpper startChar, read [startNum]) && validPos (toUpper endChar, read [endNum]) =
         quickMove2 game (toUpper startChar, read[startNum]) (toUpper endChar, read[endNum])
     | otherwise = Nothing
