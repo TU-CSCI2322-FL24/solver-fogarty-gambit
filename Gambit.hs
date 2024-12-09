@@ -862,18 +862,18 @@ causeCheck game move side =
 inCheck :: Game -> Side -> Bool
 inCheck game currentSide = 
     let (x, y) = getKingPosition game currentSide in
-    	checkLineDiag (chr(ord (x)+1), y+1) (1 ,  1) game currentSide ||
-    	checkLine     (chr(ord (x)+1), y  ) (1 ,  0) game currentSide ||
-    	checkLineDiag (chr(ord (x)+1), y-1) (1 , -1) game currentSide ||
-    	checkLine     (chr(ord (x)  ), y-1) (0 , -1) game currentSide ||
-    	checkLineDiag (chr(ord (x)-1), y-1) (-1, -1) game currentSide ||
-    	checkLine     (chr(ord (x)-1), y  ) (-1,  0) game currentSide ||
-    	checkLineDiag (chr(ord (x)-1), y+1) (-1,  1) game currentSide ||
-    	checkLine     (chr(ord (x)  ), y+1) (0 ,  1) game currentSide ||
-    	checkPawn (chr(ord (x)+1), y + (if currentSide == White then 1 else -1)) game currentSide ||
-    	checkPawn (chr(ord (x)-1), y + (if currentSide == White then 1 else -1)) game currentSide ||
+      checkLineDiag (chr(ord (x)+1), y+1) (1 ,  1) game currentSide ||
+      checkLine     (chr(ord (x)+1), y  ) (1 ,  0) game currentSide ||
+      checkLineDiag (chr(ord (x)+1), y-1) (1 , -1) game currentSide ||
+      checkLine     (chr(ord (x)  ), y-1) (0 , -1) game currentSide ||
+      checkLineDiag (chr(ord (x)-1), y-1) (-1, -1) game currentSide ||
+      checkLine     (chr(ord (x)-1), y  ) (-1,  0) game currentSide ||
+      checkLineDiag (chr(ord (x)-1), y+1) (-1,  1) game currentSide ||
+      checkLine     (chr(ord (x)  ), y+1) (0 ,  1) game currentSide ||
+      checkPawn (chr(ord (x)+1), y + (if currentSide == White then 1 else -1)) game currentSide ||
+      checkPawn (chr(ord (x)-1), y + (if currentSide == White then 1 else -1)) game currentSide ||
         checkKing (x, y) game currentSide ||
-    	checkKnights (chr(ord (x)), y) game currentSide
+      checkKnights (chr(ord (x)), y) game currentSide
 
 checkLine :: Position -> (Int, Int)-> Game -> Side -> Bool
 checkLine (x, y) (xAdd, yAdd) game side = 
