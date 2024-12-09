@@ -83,14 +83,32 @@ pieceAt pos (_,_,pieces,_)
         in if null pieceLst then Nothing else Just (head pieceLst)
     | otherwise =  Nothing --throw an error here?
 
+{-}
 parseMove :: String -> Game -> Maybe Move
 --        pattern matching to check for a correctly-formatted arg
 parseMove ['(',startChar,startNum,',',endChar,endNum,')'] game
-    | validPos (toUpper startChar, read [startNum]) && validPos (toUpper endChar, read [endNum]) && validMove game (toUpper startChar, read [startNum]) (toUpper endChar, read [endNum]) =
+    | validPos (toUpper startChar, read [startNum]) && validPos (toUpper endChar, read [endNum]) {-&& validMove game (toUpper startChar, read [startNum]) (toUpper endChar, read [endNum])-} =
         case pieceAt (toUpper startChar, read [startNum]) game of 
             Just piece -> Just (piece, (toUpper endChar, read [endNum]))
             Nothing -> Nothing
 parseMove _ _ = Nothing --throw an error here?
+
+parseMove :: String -> Game -> Maybe (Position, Position)
+--        pattern matching to check for a correctly-formatted arg
+parseMove ['(',startChar,startNum,',',endChar,endNum,')'] game
+    | validPos (toUpper startChar, read [startNum]) && validPos (toUpper endChar, read [endNum]) {-&& validMove game (toUpper startChar, read [startNum]) (toUpper endChar, read [endNum])-} =
+        Just ((toUpper startChar, read [startNum]), (toUpper endChar, read [endNum]))
+parseMove _ _ = Nothing-}
+
+parseMove :: String -> Game -> Maybe Game
+--        pattern matching to check for a correctly-formatted arg
+parseMove ['(',startChar,startNum,',',endChar,endNum,')'] game
+    | validPos (toUpper startChar, read [startNum]) && validPos (toUpper endChar, read [endNum]) =
+        quickMove2 game (toUpper startChar, read[startNum]) (toUpper endChar, read[endNum])
+    | otherwise = Nothing
+parseMove _ _ = Nothing --throw an error here?
+
+
 
 
 parseSide :: String -> Maybe Side
@@ -799,6 +817,39 @@ quickMove game@(_, currentTurn, _, _) startPos endPos =
             in if move `elem` allLegalMoves game then makeMove game move else error ("Such move does not exist")
 
         Nothing -> error "No piece at starting position"
+
+
+--Quick move calls makeMove but uses two positions instead of the longer alternative
+quickMove2 :: Game -> Position -> Position -> Maybe Game
+quickMove2 game@(_, currentTurn, _, _) startPos endPos =
+    case getPiece game startPos of
+        -- Handle the pawn case
+        Just (pos, side, Pawn _) ->
+            if (currentTurn == White && snd startPos == 7 && snd endPos == 8) || 
+                (currentTurn == Black && snd startPos == 2 && snd endPos == 1) then Just (promotePiece game startPos endPos Queen)
+            else
+            let isTwoSquareMove = abs (snd startPos - snd endPos) == 2
+                move = if isTwoSquareMove
+                       then ((pos, side, Pawn True), endPos)  -- Set Pawn True for two-square move
+                       else ((pos, side, Pawn False), endPos) -- Keep Pawn False for one-square move
+            in if move `elem` allLegalMoves game then Just (makeMove game move) else Nothing --error ("Such move does not exist")
+        
+        -- Handle the rook case
+        Just (pos, side, Rook _) -> 
+            let move = ((pos, side, Rook True), endPos)  -- Set Rook True after it moves
+            in if move `elem` allLegalMoves game then Just (makeMove game move) else Nothing --error ("Such move does not exist")
+
+        -- Handle the king case
+        Just (pos, side, King _) -> 
+            let move = ((pos, side, King True), endPos)  -- Set King True after it moves
+            in if move `elem` allLegalMoves game then Just (makeMove game move) else Nothing --error ("Such move does not exist")
+
+        -- Default case for other pieces
+        Just piece -> 
+            let move = (piece, endPos)
+            in if move `elem` allLegalMoves game then Just (makeMove game move) else Nothing --error ("Such move does not exist")
+
+        Nothing -> Nothing --error "No piece at starting position"
 
 promotePiece :: Game -> Position -> Position -> PieceType -> Game
 promotePiece game@(_, currentTurn, _, _) startPos endPos promotionPiece =

@@ -12,6 +12,7 @@ import Gambit
       whoMightWin2,
       whoWillWin,
       getWinner,
+      quickMove,
       Game,
       Move,
       Side(White, Black),
@@ -21,7 +22,6 @@ import System.Environment
 import Data.Maybe
 import System.Console.GetOpt
 import Control.Monad (when)
-import Test.QuickCheck (Result(numDiscarded))
 
 -- Default depth for move calculation
 depth :: Int
@@ -57,6 +57,8 @@ main = do
     else if Help `elem` opts
       then usage "gambit"
       else handleFlags opts nonOpts
+
+
 -- Handle different flags
 handleFlags :: [Flag] -> [String] -> IO ()
 handleFlags opts [] 
@@ -113,8 +115,8 @@ handleFlags opts (gameFile:_)
     let inputDepth = checkForDepth opts
     case checkForMove opts of
       Just str -> case parseMove str game of
-        Just move -> do --if the -m flag is passed and a valid move is given, play it.
-          let newState = makeMove game move
+        Just newState -> do --if the -m flag is passed and a valid move is given, play it.
+          --let newState = quickMove game startPos endPos
           if isVerbose
             then do
               putStrLn (displayBoard newState playerColor)
@@ -178,9 +180,9 @@ gameLoop game@(_,playerColor,_,_) botDepth = do
           putStrLn "That move is invalid/illegal. Remember, the input format looks like \"(a3,b4)\" with the quotes. Try again: \n"
           printMoves (allLegalMoves game)
           gameLoop game botDepth
-        Just m -> do
+        Just withPlayerMove -> do
           --the game state after the player has moved
-          let withPlayerMove = makeMove game m
+          --let withPlayerMove = quickMove game startPos endPos
           --print the board after the player has moved
           putStrLn (displayBoard withPlayerMove playerColor)
 
@@ -251,16 +253,6 @@ putBestMove game = do --print the outcome of whoWillWin here too
       return Nothing
 
 
-{-
-putBestMove game = do --print the outcome of whoWillWin here too
-  let move = bestMove game
-  let winner = whoWillWin game
-  putStrLn ("The best move is " ++ showMove move ++ ". The expected outcome is " ++ case winner of
-  putStrLn ("The best move is " ++ showMove move ++ ". The current expected outcome is " ++ case winner of
-    (Win White) -> "a win for white."
-    (Win Black) -> "a win for black."
-    Tie -> "a tie." -}
-
 getGoodMove :: Game -> Maybe Int -> IO (Int, Maybe Move)
 getGoodMove game maybeDepth = do
   case maybeDepth of 
@@ -295,60 +287,6 @@ putGoodMove game maybeDepth = do --print the outcome of whoWillWin here too
         Nothing -> do
           putStrLn "The game is over, no move can be played."
           return Nothing
-
-
-{-
-maxDepth = 4
-
-readMove :: Game -> String -> Maybe Game
-readMove currentGame input = let
-    args = words input
-    pos1 = strToPos (head args)
-    pos2 = strToPos (head (tail args))
-    promoPiece = if length args == 3 && isJust (strToPiece (last args)) then Just (fromJust (strToPiece (last args))) else Nothing 
-
-    in if length args > 3 || length args < 2 || isNothing pos1 || isNothing pos2 then Nothing else
-        if length args == 3 && isJust promoPiece then Just (promotePiece currentGame (fromJust pos1) (fromJust pos2) (fromJust promoPiece))
-        else Just (quickMove currentGame (fromJust pos1) (fromJust pos2))
-
-
-startGame = do
-    whiteMain maxDepth initialGame
-
-
-whiteMain :: Integer -> Game -> IO ()
-whiteMain num currentGame = do
-    displayBoard currentGame White
-    --flush the output buffer so the board prints before we try to read input
-    putStrLn "What is your move? (Format: pos, pos OR pos, pos, pieceType if promoting)"
-    hFlush stdout
-    move <- getLine
-    let newGame = readMove currentGame move in
-        case newGame of 
-            Nothing -> do 
-                putStrLn "Invalid move. Try again."
-                whiteMain num currentGame
-            Just game ->
-        --check if you won on this turn. If not, then the bot plays
-                case printWinner (getWinner game) of 
-                    --Nobody has won yet, the bot will play
-                    Nothing -> let 
-                        aiMove = bestMove ((1 + fst currentGame), Black, getThd game, getFrth game)
-                        --blackGame is the game state AFTER black moves
-                        blackGame = makeMove ((1 + fst currentGame), Black, getThd game, getFrth game) aiMove
-                        maybeWinner = getWinner blackGame
-                        in if isNothing maybeWinner 
-                            then putStrLn (printWinner maybeWinner)
-                            else whiteMain ((1 + fst blackGame), White, getThd blackGame, getFrth blackGame)
-                        --have the ai make a move, check if anyone has won, if not, then call whiteMain
-                    --Somebody won, or it's a tie
-                    Just _ -> putStrLn _-}
-
-
-
-
-
-    --main (num - 1)
 
 
 
