@@ -177,7 +177,8 @@ gameLoop game@(_,playerColor,_,_) botDepth = do
 
       case move of
         Nothing -> do
-          putStrLn "That move is invalid/illegal. Remember, the input format looks like \"(a3,b4)\" with the quotes. Try again: \n"
+          putStrLn "That move is invalid/illegal. Remember, the input format is two positions separated by a comma, like a3,b4"
+          putStrLn "Here are all the moves available to you: "
           printMoves (allLegalMoves game)
           gameLoop game botDepth
         Just withPlayerMove -> do
