@@ -83,23 +83,6 @@ pieceAt pos (_,_,pieces,_)
         in if null pieceLst then Nothing else Just (head pieceLst)
     | otherwise =  Nothing --throw an error here?
 
-{-}
-parseMove :: String -> Game -> Maybe Move
---        pattern matching to check for a correctly-formatted arg
-parseMove ['(',startChar,startNum,',',endChar,endNum,')'] game
-    | validPos (toUpper startChar, read [startNum]) && validPos (toUpper endChar, read [endNum]) {-&& validMove game (toUpper startChar, read [startNum]) (toUpper endChar, read [endNum])-} =
-        case pieceAt (toUpper startChar, read [startNum]) game of 
-            Just piece -> Just (piece, (toUpper endChar, read [endNum]))
-            Nothing -> Nothing
-parseMove _ _ = Nothing --throw an error here?
-
-parseMove :: String -> Game -> Maybe (Position, Position)
---        pattern matching to check for a correctly-formatted arg
-parseMove ['(',startChar,startNum,',',endChar,endNum,')'] game
-    | validPos (toUpper startChar, read [startNum]) && validPos (toUpper endChar, read [endNum]) {-&& validMove game (toUpper startChar, read [startNum]) (toUpper endChar, read [endNum])-} =
-        Just ((toUpper startChar, read [startNum]), (toUpper endChar, read [endNum]))
-parseMove _ _ = Nothing-}
-
 parseMove :: String -> Game -> Maybe Game
 --        pattern matching to check for a correctly-formatted arg
 parseMove ['(',startChar,startNum,',',endChar,endNum,')'] game
@@ -107,9 +90,6 @@ parseMove ['(',startChar,startNum,',',endChar,endNum,')'] game
         quickMove2 game (toUpper startChar, read[startNum]) (toUpper endChar, read[endNum])
     | otherwise = Nothing
 parseMove _ _ = Nothing --throw an error here?
-
-
-
 
 parseSide :: String -> Maybe Side
 parseSide "White" = Just White
